@@ -103,7 +103,7 @@ pub fn process_ogf(name: String) {
     // }
 }
 
-fn process_RawProbeFile(filename: String) {
+fn process_raw_probeFile(filename: String) {
     println!("{:?}", filename);
 
     let contents = fs::read_to_string(filename).expect("Should have been able to read the file");

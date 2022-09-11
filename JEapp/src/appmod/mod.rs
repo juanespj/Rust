@@ -9,10 +9,22 @@ pub mod data;
 // #[derive(serde::Deserialize, serde::Serialize)]
 // #[serde(default)]
 // if we add new fields, give them default values when deserializing old state
-use macroquad::prelude::*;
+//use macroquad::prelude::*;
 use std::collections::HashMap;
 use std::iter::Iterator;
 
+use btleplug::api::{
+    bleuuid::uuid_from_u16, Central, Manager as _, Peripheral as _, ScanFilter, WriteType,
+};
+use btleplug::platform::{Adapter, Manager, Peripheral};
+use rand::{thread_rng, Rng};
+use std::error::Error;
+use std::time::Duration;
+use uuid::Uuid;
+
+const LIGHT_CHARACTERISTIC_UUID: Uuid = uuid_from_u16(0xFFE9);
+use futures::executor::block_on;
+use tokio::time;
 //use std::f64::consts::TAU;
 //use std::collections::HashMap;
 //use self::data::RawData;
@@ -63,7 +75,7 @@ impl RenderApp {
         Default::default()
     }
 }
-
+use std::future::Future;
 impl eframe::App for RenderApp {
     /// Called by the frame work to save state before shutdown.
     // fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -116,6 +128,11 @@ impl eframe::App for RenderApp {
                 });
                 if ui.button("List COM…").clicked() {
                     listports(&mut self.portlist);
+                }
+                if ui.button("BLE…").clicked() {
+                    println!("blestarted");
+                    block_on(initble());
+                    println!("bledone");
                 }
             });
         });
@@ -170,8 +187,8 @@ impl eframe::App for RenderApp {
                     sendserial(self.port_sel.clone(), 115200, "r".to_string());
                 }
                 println!("read");
-                std::thread::sleep(Duration::from_millis((1000.0 ) as u64));
-                 readserial(self.port_sel.clone(),115200,&dataout);
+                std::thread::sleep(Duration::from_millis((1000.0) as u64));
+                readserial(self.port_sel.clone(), 115200, &dataout);
             }
 
             //bottom
@@ -280,17 +297,6 @@ impl eframe::App for RenderApp {
     }
 }
 
-fn vet_to_arr<T>(v: Vec<T>) -> [T; 32]
-where
-    T: Copy,
-{
-    let slice = v.as_slice();
-    let array: [T; 32] = match slice.try_into() {
-        Ok(ba) => ba,
-        Err(_) => panic!("Expected a Vec of length {} but it was {}", 32, v.len()),
-    };
-    array
-}
 // fn circle() -> Line {
 
 //     let n = 512;
@@ -312,10 +318,9 @@ where
 
 use serialport::{available_ports, DataBits, SerialPortType, StopBits};
 use std::io::{self, Write};
-use std::time::Duration;
 
 fn listports(list: &mut Vec<String>) {
-    &list.clear();
+    let _ = &list.clear();
     match available_ports() {
         Ok(ports) => {
             match ports.len() {
@@ -325,7 +330,7 @@ fn listports(list: &mut Vec<String>) {
             };
             for p in ports {
                 println!("  {}", p.port_name);
-                &list.push(p.port_name);
+                let _ = &list.push(p.port_name);
                 match p.port_type {
                     SerialPortType::UsbPort(info) => {
                         println!("    Type: USB");
@@ -422,4 +427,66 @@ fn sendserial(port_name: String, baud_rate: u32, string: String) {
     }
 
     //std::thread::sleep(Duration::from_millis((1000.0 / (rate as f32)) as u64));
+}
+
+async fn initble() -> Result<(), Box<dyn Error>> {
+    println!("yess");
+    pretty_env_logger::init();
+
+    let manager = Manager::new().await.unwrap();
+
+    // get the first bluetooth adapter
+    let central = manager
+        .adapters()
+        .await
+        .expect("Unable to fetch adapter list.")
+        .into_iter()
+        .nth(0)
+        .expect("Unable to find adapters.");
+
+    // start scanning for devices
+    central.start_scan(ScanFilter::default()).await?;
+    // instead of waiting, you can use central.events() to get a stream which will
+    // notify you of new devices, for an example of that see examples/event_driven_discovery.rs
+    time::sleep(Duration::from_secs(2)).await;
+
+    // find the device we're interested in
+    let device = find_Feeder(&central).await.expect("No device found");
+
+    // connect to the device
+    device.connect().await?;
+    println!("connected");
+    // discover services and characteristics
+    device.discover_services().await?;
+
+    // find the characteristic we want
+    let chars = device.characteristics();
+    let cmd_char = chars
+        .iter()
+        .find(|c| c.uuid == LIGHT_CHARACTERISTIC_UUID)
+        .expect("Unable to find characterics");
+    println!("{:?}", chars);
+    device
+        .disconnect()
+        .await
+        .expect("Error disconnecting from BLE peripheral");
+    Ok(())
+}
+
+async fn find_Feeder(central: &Adapter) -> Option<Peripheral> {
+    for p in central.peripherals().await.unwrap() {
+        if p.properties()
+            .await
+            .unwrap()
+            .unwrap()
+            .local_name
+            .iter()
+            .any(|name| name.contains("Feeder"))
+        {
+            println!("found DEV");
+            return Some(p);
+        }
+       // println!("{:?}",p);
+    }
+    return None;
 }

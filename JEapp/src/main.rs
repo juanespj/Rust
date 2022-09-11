@@ -1,5 +1,7 @@
 
-fn main() {
+
+#[tokio::main]
+async fn main()  {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     //tracing_subscriber::fmt::init();
     let options = eframe::NativeOptions {
@@ -8,12 +10,12 @@ fn main() {
         renderer: eframe::Renderer::Glow,
         depth_buffer: 24,
         ..Default::default()
-    };    
+    };
     eframe::run_native(
         "Gcode-Leveling!",
         options,
-        Box::new(|cc| Box::new(eframe_template::RenderApp::new(cc))),
+        Box::new(|cc| Box::new(jeapp::RenderApp::new(cc))),
     );
-   
+
 }
 
