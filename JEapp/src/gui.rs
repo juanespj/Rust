@@ -27,6 +27,34 @@ pub struct App {
                         //pub window: &W,
 }
 
+pub fn draw_circle(&mut self, args: &RenderArgs, pos: [f64; 2], r: f64) {
+    self.gl.draw(args.viewport(), |c, gl| {
+        use graphics::*;
+        let orange = [1.0, 0.5, 0.0, 1.0];
+
+        let c = c.trans(0.0, 0.0); //origin
+        const NO_POINTS: usize = 100;
+        let mut t: f64 = 0.0;
+        let mut arr_x: [f64; NO_POINTS] = [0.0; NO_POINTS];
+        let mut arr_y: [f64; NO_POINTS] = [0.0; NO_POINTS];
+        //let transform = c.transform.trans(0.0, 0.0).rot_rad(0.0).trans(0.0, 0.0);
+        for i in 0..NO_POINTS {
+            t += 2.0 * PI / (NO_POINTS as f64);
+            arr_x[i] = pos[0] + r * t.cos();
+            arr_y[i] = pos[1] + r * t.sin();
+        }
+        for i in 0..NO_POINTS - 1 {
+            graphics::line(
+                orange,
+                1.2,
+                [arr_x[i], arr_y[i], arr_x[i + 1], arr_y[i + 1]],
+                c.transform,
+                gl,
+            );
+        }
+    })
+}
+
 impl App {
     pub fn draw(&mut self, args: &RenderArgs, arr_x: [f64; 5], arr_y: [f64; 5]) {
         use graphics::*;
@@ -47,33 +75,7 @@ impl App {
         });
     }
 
-    pub fn draw_circle(&mut self, args: &RenderArgs, pos: [f64; 2], r: f64) {
-        self.gl.draw(args.viewport(), |c, gl| {
-            use graphics::*;
-            let orange = [1.0, 0.5, 0.0, 1.0];
-
-            let c = c.trans(0.0, 0.0); //origin
-            const NO_POINTS: usize = 100;
-            let mut t: f64 = 0.0;
-            let mut arr_x: [f64; NO_POINTS] = [0.0; NO_POINTS];
-            let mut arr_y: [f64; NO_POINTS] = [0.0; NO_POINTS];
-            //let transform = c.transform.trans(0.0, 0.0).rot_rad(0.0).trans(0.0, 0.0);
-            for i in 0..NO_POINTS {
-                t += 2.0 * PI / (NO_POINTS as f64);
-                arr_x[i] = pos[0] + r * t.cos();
-                arr_y[i] = pos[1] + r * t.sin();
-            }
-            for i in 0..NO_POINTS - 1 {
-                graphics::line(
-                    orange,
-                    1.2,
-                    [arr_x[i], arr_y[i], arr_x[i + 1], arr_y[i + 1]],
-                    c.transform,
-                    gl,
-                );
-            }
-        })
-    }
+    
 
     pub fn draw_elipse(&mut self, args: &RenderArgs, tube: &Tube) {
         self.gl.draw(args.viewport(), |c, gl| {

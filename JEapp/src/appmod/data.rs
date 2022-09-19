@@ -27,7 +27,7 @@ pub fn processdata(name: String, ds: &mut RawData) {
                 // println!("row={:?}, row[0]={:?}", row, );
             } else if i == 1 || i == 3 {
                 // let mut items = row.split(",");
-                for s in row {                    
+                for s in row {
                     if s != &DataType::Empty {
                         //let f: f64 = s.to_string().parse().unwrap();
                         value.push(s.to_string());
@@ -53,8 +53,8 @@ pub fn processdata(name: String, ds: &mut RawData) {
                     .clone()
                     .into_iter()
                     .map(|x: String| (x, emptyvec.clone()));
-                
-                    ds.dataf = HashMap::from_iter(plt);
+
+                ds.dataf = HashMap::from_iter(plt);
                 // println!("{:?}", dataf);
             } else if i > 7 {
                 //let mut ix = 0;
@@ -62,30 +62,28 @@ pub fn processdata(name: String, ds: &mut RawData) {
                 for k in header.iter_mut() {
                     let f: f32 = row[ix].to_string().parse().unwrap();
 
-                    ds.dataf.entry(k.to_string()).or_insert_with(Vec::new).push(f);
+                    ds.dataf
+                        .entry(k.to_string())
+                        .or_insert_with(Vec::new)
+                        .push(f);
 
                     ix += 1;
                 }
             }
         }
-        
     }
 }
 
 use std::fs;
 pub fn process_ogf(name: String) {
-    
-    let contents = fs::read_to_string(name)
-        .expect("Should have been able to read the file");
+    let contents = fs::read_to_string(name).expect("Should have been able to read the file");
     let mut header: Vec<String> = vec![];
-    let mut value: Vec<String> = vec![];  
-    println!("{:?}",contents);
+    let mut value: Vec<String> = vec![];
+   // println!("{:?}", contents);
     // if let Some(Ok(r)) = excel.worksheet_range("Sheet1") {
-
 
     //     for (i, row) in r.rows().enumerate() {
 
-            
     //             // println!("{:?}", dataf);
     //         } else if i > 7 {
     //             //let mut ix = 0;
@@ -99,32 +97,34 @@ pub fn process_ogf(name: String) {
     //             }
     //         }
     //     }
-        
+
     // }
 }
 
-fn process_raw_probeFile(filename: String) {
+pub fn process_raw_probe_file(filename: String, data: &mut [Vec<f64>; 3]) {
     println!("{:?}", filename);
 
     let contents = fs::read_to_string(filename).expect("Should have been able to read the file");
-    let mut x: Vec<f64> = Vec::new();
-    let mut y: Vec<f64> = Vec::new();
-    let mut z: Vec<f64> = Vec::new();
+    data[0].clear();
+    data[1].clear();
+    data[2].clear();
     for line in contents.lines() {
         let mut triplet: Vec<f64> = Vec::new();
-        for var in line.split(",") {
-            let f: f64 = match var.parse() {
-                Ok(v) => v,
-                Err(_) => 0.0, // or whatever error handling
-            };
-            triplet.push(f);
-        }
-        x.push(triplet[0]);
-        y.push(triplet[1]);
-        z.push(triplet[2]);
+       
+            for var in line.split(",") {
+                let f: f64 = match var.parse() {
+                    Ok(v) => v,
+                    Err(_) => 0.0, // or whatever error handling
+                };
+                triplet.push(f);
+            }
+            data[0].push(triplet[0]);
+            data[1].push(triplet[1]);
+            data[2].push(triplet[2]);
+        
     }
-
-   // rendermesh(x, y, z);
+    //print!("{:?}", data[2]);
+    // rendermesh(x, y, z);
 }
 
 // fn newg_word(in:Char,&word:char){

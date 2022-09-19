@@ -1,9 +1,11 @@
-use egui::widgets::plot::{Legend, Line, Plot, PlotPoints};
+use egui::widgets::plot::{Legend, Line, Plot, PlotPoints, Polygon};
 //Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine,
-//  MarkerShape,  PlotImage, PlotPoint,  Points, Polygon, Text, VLine,  LineStyle,};
+//  MarkerShape,  PlotImage, PlotPoint,  Points, Text, VLine,  LineStyle,};
 
 use egui::*;
+pub mod btcomm;
 pub mod data;
+pub mod objects;
 //pub use serial::SerialCtrl;
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 // #[derive(serde::Deserialize, serde::Serialize)]
@@ -12,19 +14,11 @@ pub mod data;
 //use macroquad::prelude::*;
 use std::collections::HashMap;
 use std::iter::Iterator;
+use std::{thread, thread::JoinHandle, time::Duration};
 
-use btleplug::api::{
-    bleuuid::uuid_from_u16, Central, Manager as _, Peripheral as _, ScanFilter, WriteType,
-};
-use btleplug::platform::{Adapter, Manager, Peripheral};
-use rand::{thread_rng, Rng};
-use std::error::Error;
-use std::time::Duration;
-use uuid::Uuid;
 
-const LIGHT_CHARACTERISTIC_UUID: Uuid = uuid_from_u16(0xFFE9);
 use futures::executor::block_on;
-use tokio::time;
+
 //use std::f64::consts::TAU;
 //use std::collections::HashMap;
 //use self::data::RawData;
@@ -40,6 +34,10 @@ pub struct RenderApp {
     portlist: Vec<String>,
     port_sel: String,
     dataset: data::RawData,
+    draw: u8,
+    objectlist: Vec<objects::Obj3D>,
+    // surflist: Vec<[[f64; 4]; 2]>,
+    surflist: Vec<objects::Surf3D>,
 }
 
 impl Default for RenderApp {
@@ -56,6 +54,9 @@ impl Default for RenderApp {
                 diag: (HashMap::new()),
                 dataf: (HashMap::new()),
             },
+            draw: 0,
+            objectlist: vec![],
+            surflist: vec![],
         }
     }
 }
@@ -75,11 +76,11 @@ impl RenderApp {
         Default::default()
     }
 }
-use std::future::Future;
+
 impl eframe::App for RenderApp {
     /// Called by the frame work to save state before shutdown.
     // fn save(&mut self, storage: &mut dyn eframe::Storage) {
-    //     eframe::set_value(storage, eframe::APP_KEY, self);
+    // eframe::set_value(storage, eframe::APP_KEY, self);
     // }
 
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -93,6 +94,9 @@ impl eframe::App for RenderApp {
             dataset,
             portlist,
             port_sel,
+            draw,
+            objectlist,
+            surflist,
         } = self;
 
         // Examples of how to create different panels and windows.
@@ -105,10 +109,40 @@ impl eframe::App for RenderApp {
             // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    if ui.button("Quit").clicked() {
+                        _frame.close();
+                    }
+                });
+                ui.menu_button("CNC", |ui| {
                     if ui.button("Open OGF…").clicked() {
                         let filename = "./4014iso".to_string();
                         data::process_ogf(filename);
 
+                        // if let Some(path) = rfd::FileDialog::new().pick_file() {
+                        //     self.picked_path = Some(path.display().to_string());
+                        //    data::processdata(path.display().to_string())
+                    }
+                    if ui.button("Open RPF…").clicked() {
+                        let filename = "./probe.txt".to_string();
+                        let mut mesh = objects::Surf3D {
+                            pos: [0.0, 0.0, 0.0],
+                            r: 2.0,
+                            alph: 0.5,
+                            beta: 0.5,
+                            gamm: 0.5,
+                            points_raw: [vec![], vec![], vec![]],
+                            points: vec![], //X Y points for render
+                            scale: 10.0,
+                            res: 100, //resolution
+                        };
+                        // let mut meshRAW: [Vec<f64>; 3] = [vec![], vec![], vec![]];
+                        data::process_raw_probe_file(filename, &mut mesh.points_raw);
+                        // println!("mesh{:?} ", mesh.points_raw);
+                        // objects::draw_3dmesh(&mut meshRAW, &mut mesh);
+                        objects::draw_3dmesh_surf(&mut mesh);
+
+                        self.surflist.push(mesh);
+                        //self.draw = 1;
                         // if let Some(path) = rfd::FileDialog::new().pick_file() {
                         //     self.picked_path = Some(path.display().to_string());
                         //    data::processdata(path.display().to_string())
@@ -121,9 +155,21 @@ impl eframe::App for RenderApp {
                             data::processdata(path.display().to_string(), &mut self.dataset)
                         }
                     }
+                    if ui.button("draw").clicked() {
+                        let mut circle1 = objects::Obj3D {
+                            pos: [0.0, 0.0, 0.0],
+                            r: 1.0,
+                            alph: 0.0,
+                            beta: 0.0,
+                            gamm: 0.0,
+                            points: [vec![], vec![]], //X Y points for render
+                            scale: 1.0,
+                            res: 100, //resolution
+                        };
 
-                    if ui.button("Quit").clicked() {
-                        _frame.close();
+                        objects::draw_circle3d(&mut circle1);
+                        self.objectlist.push(circle1);
+                        self.draw = 1;
                     }
                 });
                 if ui.button("List COM…").clicked() {
@@ -131,7 +177,13 @@ impl eframe::App for RenderApp {
                 }
                 if ui.button("BLE…").clicked() {
                     println!("blestarted");
-                    block_on(initble());
+               
+                    futures::executor::block_on(
+                        async {
+                            btcomm::initble().await;
+                        }
+                    );
+
                     println!("bledone");
                 }
             });
@@ -157,7 +209,7 @@ impl eframe::App for RenderApp {
             }
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("The triangle is being painted using ");
+                ui.label("The triangle ");
                 ui.hyperlink_to("three-d", "https://github.com/asny/three-d");
                 ui.label(".");
                 ui.end_row();
@@ -211,77 +263,71 @@ impl eframe::App for RenderApp {
             // The central panel the region left after adding TopPanel's and SidePanel's
 
             ui.heading("Preview");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
+            if self.objectlist.len() > 0 || self.surflist.len() > 0 {
+                let plot = Plot::new("preview")
+                    .include_x(0.0)
+                    .include_y(0.0)
+                    .width(600.0)
+                    .height(300.0)
+                    .view_aspect(1.0)
+                    .data_aspect(1.0)
+                    .allow_scroll(false)
+                    .allow_drag(false)
+                    .show_axes([false; 2])
+                    .show_background(false)
+                    .legend(Legend::default());
 
-            let plota = Plot::new("fplot")
-                .include_x(0.0)
-                .include_y(0.0)
-                .width(500.0)
-                .height(200.0)
-                .legend(Legend::default());
+                plot.show(ui, |plot_ui| {
+                    if self.objectlist.len() > 0 {
+                        for obj in self.objectlist.iter() {
+                            let x = &obj.points[0];
+                            let y = &obj.points[1];
+                            let plt: PlotPoints =
+                                (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
 
-            if self.data_ready == 1 {
-                plota.show(ui, |plot_ui| {
-                    let x = &self.dataset.dataf["Time"];
-                    let y = &self.dataset.dataf["Tcalc"];
-                    //  println!("{:?}",y);
-                    //     let x = vec![0.0, 1.0, 2.0, 3.0, 4.0, 205.0];
-                    // let y = vec![20.0, 4.0, 3.0, 2.0, 1.0, 0.0];
-                    //println!("{:?}", x.iter().cloned().fold(0./0., f32::max));
+                            let planned_line =
+                                Line::new(plt).color(Color32::from_rgb(100, 200, 100));
+                            plot_ui.line(planned_line);
+                        }
+                    }
+                    if self.surflist.len() > 0 {
+                        let rot: [f64; 2] = [
+                            plot_ui.pointer_coordinate_drag_delta()[0] as f64,
+                            plot_ui.pointer_coordinate_drag_delta()[1] as f64,
+                        ];
+                        if rot[0] != 0.0 || rot[1] != 0.0 {
+                            let mut i = 0;
+                            while i < self.surflist.len() {
+                                self.surflist[i].alph = rot[0] * 0.5 + self.surflist[i].alph;
+                                self.surflist[i].beta = rot[1] * 0.5 + self.surflist[i].beta;
+                                objects::draw_3dmesh_surf(&mut self.surflist[i]);
+                                i += 1;
+                            }
+                        }
+                        for obj in self.surflist.iter() {
+                            for surf in obj.points.iter() {
+                                let x = &surf[0];
+                                let y = &surf[1];
+                                let plt: PlotPoints = (0..x.len()).map(|i| [x[i], y[i]]).collect();
 
-                    let plt: PlotPoints =
-                        (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
+                                let planned_surf =
+                                    Polygon::new(plt).color(Color32::from_rgb(100, 200, 100));
+                                plot_ui.polygon(planned_surf);
+                            }
+                        }
+                        //   let rot:[f32;2]=[plot_ui.pointer_coordinate_drag_delta()[0],plot_ui.pointer_coordinate_drag_delta()[1] ];
 
-                    let planned_line = Line::new(plt);
-                    plot_ui.line(planned_line);
+                        // if rot[0] != 0.0{
+                        //     self.objectlist[0].alph+=rot[0] as f64;
+                        // }
+                        // if rot[1] != 0.0{
+                        //     self.objectlist[0].beta+=rot[1]as f64;
+                        // }
+                        // println!("coords{:?} ",plot_ui.pointer_coordinate_drag_delta()[0] );
+                    }
                 });
                 //self.data_ready = 0;
             }
-
-            let plot = Plot::new("lines")
-                .include_x(0.0)
-                .include_y(0.0)
-                .show_axes([false; 2])
-                .show_background(false)
-                .width(500.0)
-                .height(250.0)
-                .legend(Legend::default());
-            plot.show(ui, |plot_ui| {
-                let x = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
-                let y = [5.0, 4.0, 3.0, 2.0, 1.0, 0.0];
-
-                let plt: PlotPoints = (0..x.len()).map(|i| [x[i], y[i]]).collect();
-
-                let planned_line = Line::new(plt);
-                plot_ui.line(planned_line);
-                let sin: PlotPoints = (0..1000)
-                    .map(|i| {
-                        let x = i as f64 * 0.01;
-                        [x, x.sin()]
-                    })
-                    .collect();
-                // println!("{:?}",sin );
-                let planned_line = Line::new(sin).fill(0.0);
-                plot_ui.line(planned_line);
-                let r: f64 = 5.0;
-
-                let circle: PlotPoints = (0..100)
-                    .map(|i| {
-                        let t = i as f64 * 0.01;
-                        [0.0 + r * t.cos(), 0.0 + r * t.sin()]
-                    })
-                    .collect();
-                let planned_line = Line::new(circle);
-                plot_ui.line(planned_line);
-
-                // let planned_line = Line::new(series.into_iter().map(|x|x)).fill(0.0);
-                // let planned_line = Line::new(PlotPoints::from_iter(series.into_iter()));
-                // plot_ui.line(planned_line);
-            });
 
             egui::warn_if_debug_build(ui);
         });
@@ -296,25 +342,6 @@ impl eframe::App for RenderApp {
         }
     }
 }
-
-// fn circle() -> Line {
-
-//     let n = 512;
-//     let line_style= LineStyle::Solid;
-//     let circle = (0..=n).map(|i| {
-//         let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
-//         let r = 2.0;
-//         let circle_center= Pos2::new(0.0, 0.0);
-//         PlotPoint ::new(
-//             r * t.cos() + circle_center.x as f64,
-//             r * t.sin() + circle_center.y as f64,
-//         )
-//     });
-//     Line::new(PlotPoints ::from_values_iter(circle))
-//         .color(Color32::from_rgb(100, 200, 100))
-//         .style(line_style)
-//         .name("circle")
-// }
 
 use serialport::{available_ports, DataBits, SerialPortType, StopBits};
 use std::io::{self, Write};
@@ -427,66 +454,4 @@ fn sendserial(port_name: String, baud_rate: u32, string: String) {
     }
 
     //std::thread::sleep(Duration::from_millis((1000.0 / (rate as f32)) as u64));
-}
-
-async fn initble() -> Result<(), Box<dyn Error>> {
-    println!("yess");
-    pretty_env_logger::init();
-
-    let manager = Manager::new().await.unwrap();
-
-    // get the first bluetooth adapter
-    let central = manager
-        .adapters()
-        .await
-        .expect("Unable to fetch adapter list.")
-        .into_iter()
-        .nth(0)
-        .expect("Unable to find adapters.");
-
-    // start scanning for devices
-    central.start_scan(ScanFilter::default()).await?;
-    // instead of waiting, you can use central.events() to get a stream which will
-    // notify you of new devices, for an example of that see examples/event_driven_discovery.rs
-    time::sleep(Duration::from_secs(2)).await;
-
-    // find the device we're interested in
-    let device = find_Feeder(&central).await.expect("No device found");
-
-    // connect to the device
-    device.connect().await?;
-    println!("connected");
-    // discover services and characteristics
-    device.discover_services().await?;
-
-    // find the characteristic we want
-    let chars = device.characteristics();
-    let cmd_char = chars
-        .iter()
-        .find(|c| c.uuid == LIGHT_CHARACTERISTIC_UUID)
-        .expect("Unable to find characterics");
-    println!("{:?}", chars);
-    device
-        .disconnect()
-        .await
-        .expect("Error disconnecting from BLE peripheral");
-    Ok(())
-}
-
-async fn find_Feeder(central: &Adapter) -> Option<Peripheral> {
-    for p in central.peripherals().await.unwrap() {
-        if p.properties()
-            .await
-            .unwrap()
-            .unwrap()
-            .local_name
-            .iter()
-            .any(|name| name.contains("Feeder"))
-        {
-            println!("found DEV");
-            return Some(p);
-        }
-       // println!("{:?}",p);
-    }
-    return None;
 }
