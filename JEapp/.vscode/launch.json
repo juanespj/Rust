@@ -10,9 +10,9 @@
             "request": "launch",
             "program": "${workspaceRoot}/target/debug/jeapp.exe",
             "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceRoot}",
             "environment": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",            
             "externalConsole": true
         },
 

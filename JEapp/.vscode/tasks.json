@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"type": "cargo",
-			"command": "RUST_BACKTRACE=1 cargo test",
+			"command": "run RUST_BACKTRACE=1",
 			"problemMatcher": [
 				"$rustc"
 			],
