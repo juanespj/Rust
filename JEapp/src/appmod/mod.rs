@@ -3,10 +3,10 @@ use egui::widgets::plot::{Legend, Line, Plot, PlotPoints, Polygon};
 //  MarkerShape,  PlotImage, PlotPoint,  Points, Text, VLine,  LineStyle,};
 
 use egui::*;
-pub mod btcomm;
 pub mod data;
 pub mod objects;
 //pub use serial::SerialCtrl;
+use crate::blesys;
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 // #[derive(serde::Deserialize, serde::Serialize)]
 // #[serde(default)]
@@ -14,20 +14,13 @@ pub mod objects;
 //use macroquad::prelude::*;
 use std::collections::HashMap;
 use std::iter::Iterator;
-use std::{thread, thread::JoinHandle, time::Duration};
-
-
-use futures::executor::block_on;
-
-//use std::f64::consts::TAU;
-//use std::collections::HashMap;
-//use self::data::RawData;
+use std::{thread, time::Duration};
 pub struct RenderApp {
     // Example stuff:
     label: String,
     // this how you opt-out of serialization of a member
     // #[serde(skip)]
-    value: f32,
+    ble: u8,
     //portoptions:Enum,
     data_ready: u8,
     picked_path: Option<String>,
@@ -38,6 +31,7 @@ pub struct RenderApp {
     objectlist: Vec<objects::Obj3D>,
     // surflist: Vec<[[f64; 4]; 2]>,
     surflist: Vec<objects::Surf3D>,
+    threads: Vec<thread::JoinHandle<()>>,
 }
 
 impl Default for RenderApp {
@@ -45,7 +39,7 @@ impl Default for RenderApp {
         Self {
             // Example stuff:
             label: "Hello World!".to_owned(),
-            value: 2.7,
+            ble: 0,
             picked_path: None,
             data_ready: 0,
             port_sel: "-".to_string(),
@@ -57,6 +51,7 @@ impl Default for RenderApp {
             draw: 0,
             objectlist: vec![],
             surflist: vec![],
+            threads: Vec::new(),
         }
     }
 }
@@ -88,7 +83,7 @@ impl eframe::App for RenderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self {
             label,
-            value,
+            ble,
             picked_path,
             data_ready,
             dataset,
@@ -97,6 +92,7 @@ impl eframe::App for RenderApp {
             draw,
             objectlist,
             surflist,
+            threads,
         } = self;
 
         // Examples of how to create different panels and windows.
@@ -174,18 +170,28 @@ impl eframe::App for RenderApp {
                 });
                 if ui.button("List COM…").clicked() {
                     listports(&mut self.portlist);
+                    // dbg!();
+                    // unreachable!();
                 }
-                if ui.button("BLE…").clicked() {
-                    println!("blestarted");
-               
-                    futures::executor::block_on(
-                        async {
-                            btcomm::initble().await;
+                ui.menu_button("BLE", |ui| {
+                    if self.threads.len() > 0 {
+                        while self.threads.len() > 0 {
+                            let cur_thread = self.threads.remove(0); // moves it into cur_thread
+                            cur_thread.join().unwrap();
                         }
-                    );
+                    }
+                    if ui.button("Sync").clicked() {
+                        let builder = thread::Builder::new();
+                        self.threads
+                            .push(builder.spawn(|| blesys::BLESys::run(1)).unwrap());
+                    }
+                    if ui.button("trig").clicked() {
+                        let builder = thread::Builder::new();
 
-                    println!("bledone");
-                }
+                        self.threads
+                            .push(builder.spawn(|| blesys::BLESys::run(2)).unwrap());
+                    }
+                });
             });
         });
 
@@ -203,10 +209,10 @@ impl eframe::App for RenderApp {
                     ui.monospace(picked_path);
                 });
             }
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
+            // ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
+            // if ui.button("Increment").clicked() {
+            //     *value += 1;
+            // }
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.label("The triangle ");
