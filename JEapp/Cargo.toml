@@ -13,13 +13,15 @@ serde = ["uuid/serde", "serde_cr", "serde_bytes"]
 egui = "0.19.0"
 eframe = { version = "0.19.0", features = ["persistence"] }
 serde = { version = "1.0.144", features = ["derive"] } # You only need this if you want app persistence
+serde_json = { version = "1.0", features = ["preserve_order"] }
+serde_derive = "1.0.117"
 rfd = "0.10"
 serialport = "4.2.0"
 #macroquad = { version = "0.3.16", default-features = false }
 calamine = "0.18.0"
 windows = { version = "0.39.0", features = ["Devices_Bluetooth", "Devices_Bluetooth_GenericAttributeProfile", "Devices_Bluetooth_Advertisement", "Devices_Radios", "Foundation_Collections", "Foundation", "Storage_Streams"] }
 ndarray = "0.15.6"
-
+color-eyre = "0.6.2"
 btleplug = { version = "0.10", features = ["serde"] }
 async-trait = "0.1.56"
 log = "0.4.17"
@@ -30,6 +32,7 @@ serde_bytes = { version = "0.11.6", optional = true }
 futures = "0.3.21"
 tokio = { version = "1.20.1", features = ["macros", "rt", "rt-multi-thread", "sync"] }
 chrono = "0.4"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.39.0", features = ["Devices_Bluetooth", "Devices_Bluetooth_GenericAttributeProfile", "Devices_Bluetooth_Advertisement", "Devices_Radios", "Foundation_Collections", "Foundation", "Storage_Streams"] }
 

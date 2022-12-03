@@ -1,36 +1,66 @@
 use egui::widgets::plot::{Legend, Line, Plot, PlotPoints, Polygon};
 //Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine,
 //  MarkerShape,  PlotImage, PlotPoint,  Points, Text, VLine,  LineStyle,};
-
 use egui::*;
+
 pub mod data;
 pub mod objects;
 //pub use serial::SerialCtrl;
-use crate::blesys;
+use crate::blesys::{BLEState, BLESys};
+use crate::sersys::{SerState, SerSys};
+use serde_derive::{Deserialize, Serialize};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-// #[derive(serde::Deserialize, serde::Serialize)]
-// #[serde(default)]
-// if we add new fields, give them default values when deserializing old state
-//use macroquad::prelude::*;
+//
 use std::collections::HashMap;
 use std::iter::Iterator;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
 use std::{thread, time::Duration};
+pub struct Mesagging {
+    ble_ch: (Sender<BLESys>, Receiver<BLESys>),
+    ser_ch: (Sender<SerSys>, Receiver<SerSys>),
+}
+
+#[derive(PartialEq, Serialize, Deserialize)]
+enum CMDapp {
+    Idle,
+    BLEmsg,
+    UpdPrev,
+    Sermsg,
+}
+// if we add new fields, give them default values when deserializing old state
+// use macroquad::prelude::*;
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(default)]
 pub struct RenderApp {
     // Example stuff:
     label: String,
     // this how you opt-out of serialization of a member
-    // #[serde(skip)]
-    ble: u8,
-    //portoptions:Enum,
     data_ready: u8,
     picked_path: Option<String>,
+    #[serde(skip)]
+    sersys: SerSys,
+    #[serde(skip)]
     portlist: Vec<String>,
+    #[serde(skip)]
     port_sel: String,
+    #[serde(skip)]
     dataset: data::RawData,
     draw: u8,
+    #[serde(skip)]
+    msgs: Mesagging,
+    #[serde(skip)]
+    blesys: BLESys,
+    blepersel: String,
+    blelist: Vec<String>,
+    #[serde(skip)]
+    cmd: CMDapp,
+    #[serde(skip)]
     objectlist: Vec<objects::Obj3D>,
     // surflist: Vec<[[f64; 4]; 2]>,
+    #[serde(skip)]
     surflist: Vec<objects::Surf3D>,
+    #[serde(skip)]
     threads: Vec<thread::JoinHandle<()>>,
 }
 
@@ -39,14 +69,22 @@ impl Default for RenderApp {
         Self {
             // Example stuff:
             label: "Hello World!".to_owned(),
-            ble: 0,
+            cmd: CMDapp::Idle,
             picked_path: None,
             data_ready: 0,
+            sersys: SerSys::default(),
             port_sel: "-".to_string(),
             portlist: vec![],
             dataset: data::RawData {
                 diag: (HashMap::new()),
                 dataf: (HashMap::new()),
+            },
+            blesys: BLESys::default(),
+            blepersel: "-".to_string(),
+            blelist: vec![],
+            msgs: Mesagging {
+                ble_ch: mpsc::channel::<BLESys>(),
+                ser_ch: mpsc::channel::<SerSys>(),
             },
             draw: 0,
             objectlist: vec![],
@@ -64,9 +102,9 @@ impl RenderApp {
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        // if let Some(storage) = cc.storage {
-        //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        // }
+        if let Some(storage) = cc.storage {
+            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        }
 
         Default::default()
     }
@@ -74,20 +112,25 @@ impl RenderApp {
 
 impl eframe::App for RenderApp {
     /// Called by the frame work to save state before shutdown.
-    // fn save(&mut self, storage: &mut dyn eframe::Storage) {
-    // eframe::set_value(storage, eframe::APP_KEY, self);
-    // }
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self {
             label,
-            ble,
+            blesys,
+            msgs,
             picked_path,
             data_ready,
             dataset,
+            cmd,
+            sersys,
             portlist,
+            blelist,
+            blepersel,
             port_sel,
             draw,
             objectlist,
@@ -169,27 +212,58 @@ impl eframe::App for RenderApp {
                     }
                 });
                 if ui.button("List COM…").clicked() {
-                    listports(&mut self.portlist);
+                    if self.sersys.state == SerState::CREATED {
+                        let (tx_ser, rx_ser): (Sender<SerSys>, Receiver<SerSys>) =
+                            mpsc::channel::<SerSys>();
+                        let (tx_a, rx_a): (Sender<SerSys>, Receiver<SerSys>) =
+                            mpsc::channel::<SerSys>();
+                        self.msgs.ser_ch.0 = tx_a;
+                        self.msgs.ser_ch.1 = rx_ser;
+                        //self keeps tx_a and rx_w
+                        let builder = thread::Builder::new();
+                        self.threads.push(
+                            builder
+                                .spawn(move || SerSys::startserv(tx_ser, rx_a))
+                                .unwrap(),
+                        );
+                        self.cmd = CMDapp::Sermsg;
+                    }
+
+                    //   listports(&mut self.portlist);
                     // dbg!();
                     // unreachable!();
                 }
-                ui.menu_button("BLE", |ui| {
-                    if self.threads.len() > 0 {
-                        while self.threads.len() > 0 {
-                            let cur_thread = self.threads.remove(0); // moves it into cur_thread
-                            cur_thread.join().unwrap();
-                        }
-                    }
-                    if ui.button("Sync").clicked() {
-                        let builder = thread::Builder::new();
-                        self.threads
-                            .push(builder.spawn(|| blesys::BLESys::run(1)).unwrap());
-                    }
-                    if ui.button("trig").clicked() {
-                        let builder = thread::Builder::new();
 
-                        self.threads
-                            .push(builder.spawn(|| blesys::BLESys::run(2)).unwrap());
+                ui.menu_button("BLE", |ui| {
+                    // if self.threads.len() > 0 {
+                    //     while self.threads.len() > 0 {
+                    //         let cur_thread = self.threads.remove(0); // moves it into cur_thread
+                    //         cur_thread.join().unwrap();
+                    //     }
+                    // }
+                    if ui.button("Start").clicked() {
+                        if self.blesys.state == BLEState::CREATED {
+                            let (tx_ble, rx_ble): (Sender<BLESys>, Receiver<BLESys>) =
+                                mpsc::channel::<BLESys>();
+                            let (tx_a, rx_a): (Sender<BLESys>, Receiver<BLESys>) =
+                                mpsc::channel::<BLESys>();
+                            self.msgs.ble_ch.0 = tx_a;
+                            self.msgs.ble_ch.1 = rx_ble;
+                            //self keeps tx_a and rx_w
+                            let builder = thread::Builder::new();
+                            self.threads.push(
+                                builder
+                                    .spawn(move || BLESys::startserv(tx_ble, rx_a))
+                                    .unwrap(),
+                            );
+
+                            self.cmd = CMDapp::BLEmsg;
+                        }
+                        println!("sync.")
+                    }
+                    if ui.button("Scan").clicked() {
+                        self.blesys.state = BLEState::SCAN;
+                        self.cmd = CMDapp::BLEmsg;
                     }
                 });
             });
@@ -231,24 +305,53 @@ impl eframe::App for RenderApp {
                         );
                     }
                 });
+
             if ui.button("Read").clicked() {
                 println!("{}", self.port_sel);
-                let mut dataout: Vec<String> = vec![];
+
                 if self.port_sel != "-" {
-                    readserial(self.port_sel.clone(), 115200, &dataout);
+                    self.sersys
+                        .status
+                        .insert("sel".to_string(), vec![self.port_sel.clone()]);
+                    self.sersys.state = SerState::READ;
+                    self.cmd = CMDapp::Sermsg;
                 }
             }
             if ui.button("Send").clicked() {
-                println!("{}", self.port_sel);
-                let mut dataout: Vec<String> = vec![];
                 if self.port_sel != "-" {
-                    sendserial(self.port_sel.clone(), 115200, "r".to_string());
+                    self.sersys
+                        .status
+                        .insert("sel".to_string(), vec![self.port_sel.clone()]);
+                    self.sersys
+                        .status
+                        .insert("write".to_string(), vec!["p".to_string()]);
+                    self.sersys.state = SerState::WRITE;
+                    self.cmd = CMDapp::Sermsg;
                 }
-                println!("read");
-                std::thread::sleep(Duration::from_millis((1000.0) as u64));
-                readserial(self.port_sel.clone(), 115200, &dataout);
+                println!("{}", self.port_sel);
+                //let mut dataout: Vec<String> = vec![];
             }
-
+            ui.separator();
+            ComboBox::from_label("BLE Port")
+                .selected_text(self.blepersel.to_string())
+                .show_ui(ui, |ui| {
+                    for i in 0..self.blelist.len() {
+                        ui.selectable_value(
+                            &mut self.blepersel,
+                            (*self.blelist[i]).to_string(),
+                            self.blelist[i].to_string(),
+                        );
+                    }
+                });
+            if ui.button("Connect").clicked() {
+                if self.blepersel != "".to_string() {
+                    self.blesys
+                        .status
+                        .insert("sel".to_string(), vec![self.blepersel.clone()]);
+                    self.blesys.state = BLEState::FIND;
+                    self.cmd = CMDapp::BLEmsg;
+                }
+            }
             //bottom
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
@@ -347,117 +450,48 @@ impl eframe::App for RenderApp {
             });
         }
     }
-}
 
-use serialport::{available_ports, DataBits, SerialPortType, StopBits};
-use std::io::{self, Write};
-
-fn listports(list: &mut Vec<String>) {
-    let _ = &list.clear();
-    match available_ports() {
-        Ok(ports) => {
-            match ports.len() {
-                0 => println!("No ports found."),
-                1 => println!("Found 1 port:"),
-                n => println!("Found {} ports:", n),
-            };
-            for p in ports {
-                println!("  {}", p.port_name);
-                let _ = &list.push(p.port_name);
-                match p.port_type {
-                    SerialPortType::UsbPort(info) => {
-                        println!("    Type: USB");
-                        println!("    VID:{:04x} PID:{:04x}", info.vid, info.pid);
-                        println!(
-                            "     Serial Number: {}",
-                            info.serial_number.as_ref().map_or("", String::as_str)
-                        );
-                        println!(
-                            "      Manufacturer: {}",
-                            info.manufacturer.as_ref().map_or("", String::as_str)
-                        );
-                        println!(
-                            "           Product: {}",
-                            info.product.as_ref().map_or("", String::as_str)
-                        );
-                        // println!(
-                        //     "         Interface: {}",
-                        //     info.interface
-                        //         .as_ref()
-                        //         .map_or("".to_string(), |x| format!("{:02x}", *x))
-                        // );
-                    }
-                    SerialPortType::BluetoothPort => {
-                        println!("    Type: Bluetooth");
-                    }
-                    SerialPortType::PciPort => {
-                        println!("    Type: PCI");
-                    }
-                    SerialPortType::Unknown => {
-                        println!("    Type: Unknown");
-                    }
+    fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {
+        match self.msgs.ble_ch.1.try_recv() {
+            Ok(data) => {
+                println!("fromBLE: {:?}", data.status);
+                self.blesys = data.clone();
+                if self.blesys.status.contains_key("periph") {
+                    self.blelist = self.blesys.status.get("periph").unwrap().to_vec()
                 }
             }
+            Err(_) => { /* handle sender disconnected */ } //Err(TryRecvError::Empty) => { /* handle no data available yet */ }
         }
-        Err(e) => {
-            eprintln!("{:?}", e);
-            eprintln!("Error listing serial ports");
+        match self.msgs.ser_ch.1.try_recv() {
+            Ok(data) => {
+                println!("fromSer: {:?}", data.status);
+                self.sersys = data.clone();
+                if self.sersys.status.contains_key("list") {
+                    self.portlist = self.sersys.status.get("list").unwrap().to_vec()
+                }
+            }
+            Err(_) => { /* handle sender disconnected */ } //Err(TryRecvError::Empty) => { /* handle no data available yet */ }
         }
-    }
-}
-
-fn readserial(port_name: String, baud_rate: u32, dataout: &Vec<String>) {
-    let prt = port_name.clone();
-    let port = serialport::new(prt, baud_rate)
-        .timeout(Duration::from_millis(10))
-        .open();
-
-    match port {
-        Ok(mut port) => {
-            let mut serial_buf: Vec<u8> = vec![0; 1000];
-            println!("Receiving data on {} at {} baud:", port_name, baud_rate);
-
-            match port.read(serial_buf.as_mut_slice()) {
-                Ok(t) => io::stdout().write_all(&serial_buf[..t]).unwrap(),
-                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
-                Err(e) => eprintln!("{:?}", e),
+        match self.cmd {
+            CMDapp::BLEmsg => {
+                if let Err(_) = self.msgs.ble_ch.0.send(self.blesys.clone()) {
+                    println!("BLE has stopped listening.")
+                }
+                thread::sleep(Duration::from_millis(200));
+                self.cmd = CMDapp::Idle;
+            }
+            CMDapp::Sermsg => {
+                if let Err(_) = self.msgs.ser_ch.0.send(self.sersys.clone()) {
+                    println!("Ser has stopped listening.")
+                }
+                thread::sleep(Duration::from_millis(200));
+                self.cmd = CMDapp::Idle;
+            }
+            CMDapp::Idle => (),
+            CMDapp::UpdPrev => {
+                //self.greetold = self.ui.greet.clone();
+                self.cmd = CMDapp::Idle;
             }
         }
-        Err(e) => {
-            eprintln!("Failed to open \"{}\". Error: {}", &port_name, e);
-            // ::std::process::exit(1);
-        }
     }
-}
-
-fn sendserial(port_name: String, baud_rate: u32, string: String) {
-    let stop_bits = StopBits::One;
-    let data_bits = DataBits::Eight;
-
-    let prt = port_name.clone();
-    let builder = serialport::new(prt, baud_rate)
-        .stop_bits(stop_bits)
-        .data_bits(data_bits);
-
-    println!("{:?}", &builder);
-    let mut port = builder.open().unwrap_or_else(|e| {
-        eprintln!("Failed to open \"{}\". Error: {}", port_name, e);
-        ::std::process::exit(1);
-    });
-
-    println!(
-        "Writing '{}' to {} at {} baud ",
-        &string, &port_name, &baud_rate
-    );
-
-    match port.write(string.as_bytes()) {
-        Ok(_) => {
-            //print!("{}", &string);
-            std::io::stdout().flush().unwrap();
-        }
-        Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
-        Err(e) => eprintln!("{:?}", e),
-    }
-
-    //std::thread::sleep(Duration::from_millis((1000.0 / (rate as f32)) as u64));
 }

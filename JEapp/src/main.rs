@@ -5,7 +5,7 @@ fn main() {
     // tracing_subscriber::fmt::init();
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(1024.0, 1024.0)),
+        initial_window_size: Some(egui::vec2(600.0, 800.0)),
         multisampling: 8,
         renderer: eframe::Renderer::Glow,
         depth_buffer: 24,
