@@ -10,7 +10,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc};
 use std::{
     error::Error,
-    str, thread,
+    str,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::time;
@@ -37,19 +37,14 @@ pub struct BLESys {
     pub state: BLEState,
     pub status: HashMap<String, Vec<String>>,
     #[serde(skip)]
-    adapter_list: Vec<Adapter>,   
-    pub blepersel: String,
-    pub blelist: Vec<String>,
+    adapter_list: Vec<Adapter>,
 }
-
 impl Default for BLESys {
     fn default() -> Self {
         Self {
             state: BLEState::CREATED,
             status: HashMap::new(),
-            adapter_list: vec![],           
-            blepersel: "-".to_string(),
-            blelist: vec![],   
+            adapter_list: vec![],
         }
     }
 }
@@ -199,45 +194,6 @@ async fn list_periph(sys: &mut BLESys) -> color_eyre::Result<()> {
     }
     // println!("SCAN {:?}", sys.status);
     Ok(())
-}
-
-use egui::*;
-pub fn ble_gui(ui: &mut Ui, blectrl: &mut BLESys) -> u8 {
-    // ui.menu_button("BLE", |ui| {
-    // if self.threads.len() > 0 {
-    //     while self.threads.len() > 0 {
-    //         let cur_thread = self.threads.remove(0); // moves it into cur_thread
-    //         cur_thread.join().unwrap();
-    //     }
-    // }
-    // });
-    let mut msg = 0;
-    
-    if ui.button("Scan").clicked() {
-        blectrl.state = BLEState::SCAN;
-        msg = 1;
-    }
-    ui.separator();
-    ComboBox::from_label("BLE Port")
-        .selected_text(blectrl.blepersel.to_string())
-        .show_ui(ui, |ui| {
-            for i in 0..blectrl.blelist.len() {
-                ui.selectable_value(
-                    &mut blectrl.blepersel,
-                    (*blectrl.blelist[i]).to_string(),
-                    blectrl.blelist[i].to_string(),
-                );
-            }
-        });
-    if ui.button("Connect").clicked() {
-        if blectrl.blepersel != "".to_string() {
-            blectrl.status
-                .insert("sel".to_string(), vec![blectrl.blepersel.clone()]);
-                blectrl.state = BLEState::FIND;
-            msg = 1;
-        }
-    }
-    return msg;
 }
 
 // fn per_chara(){

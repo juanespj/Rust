@@ -3,7 +3,6 @@ use num::signum;
 use std::collections::HashMap;
 use std::num::*;
 
-#[derive(Debug, Clone,Default)]
 pub struct ObjAnim {
     pub steps: u128,
     pub step: u128,

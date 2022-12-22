@@ -1,21 +1,28 @@
 use egui::widgets::plot::{Legend, Line, Plot, PlotPoints, Polygon};
 //Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine,
 //  MarkerShape,  PlotImage, PlotPoint,  Points, Text, VLine,  LineStyle,};
+use core::f64::consts::PI;
 use egui::*;
-
 pub mod data;
 pub mod objects;
+
 //pub use serial::SerialCtrl;
-use crate::blesys::{BLEState, BLESys};
+use crate::blesys::{self, ble_gui, BLEState, BLESys};
+use crate::rbbsim::{RbbCtrl, RbbState};
 use crate::sersys::{SerState, SerSys};
-use serde_derive::{Deserialize, Serialize};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-//
+use device_query::{DeviceQuery, DeviceState, Keycode};
+use num::signum;
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter::Iterator;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::{thread, time::Duration};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
+
 pub struct Mesagging {
     ble_ch: (Sender<BLESys>, Receiver<BLESys>),
     ser_ch: (Sender<SerSys>, Receiver<SerSys>),
@@ -37,6 +44,7 @@ pub struct RenderApp {
     label: String,
     // this how you opt-out of serialization of a member
     data_ready: u8,
+    timer: Duration,
     picked_path: Option<String>,
     #[serde(skip)]
     sersys: SerSys,
@@ -46,15 +54,21 @@ pub struct RenderApp {
     port_sel: String,
     #[serde(skip)]
     dataset: data::RawData,
+    #[serde(skip)]
+    device_state: DeviceState,
+    #[serde(skip)]
+    anim_state: objects::ObjAnim,
     draw: u8,
     #[serde(skip)]
     msgs: Mesagging,
     #[serde(skip)]
-    blesys: BLESys,
-    blepersel: String,
-    blelist: Vec<String>,
+    blectrl: BLESys,
+    #[serde(skip)]
+    rbbctrl: RbbCtrl,
     #[serde(skip)]
     cmd: CMDapp,
+    #[serde(skip)]
+    objstate: HashMap<String, HashMap<String, f64>>,
     #[serde(skip)]
     objectlist: Vec<objects::Obj3D>,
     // surflist: Vec<[[f64; 4]; 2]>,
@@ -71,7 +85,9 @@ impl Default for RenderApp {
             label: "Hello World!".to_owned(),
             cmd: CMDapp::Idle,
             picked_path: None,
+            timer: Duration::new(0, 0),
             data_ready: 0,
+            device_state: DeviceState::new(),
             sersys: SerSys::default(),
             port_sel: "-".to_string(),
             portlist: vec![],
@@ -79,15 +95,20 @@ impl Default for RenderApp {
                 diag: (HashMap::new()),
                 dataf: (HashMap::new()),
             },
-            blesys: BLESys::default(),
-            blepersel: "-".to_string(),
-            blelist: vec![],
+            blectrl: BLESys::default(),
+            rbbctrl: RbbCtrl::default(),
             msgs: Mesagging {
                 ble_ch: mpsc::channel::<BLESys>(),
                 ser_ch: mpsc::channel::<SerSys>(),
             },
+            anim_state: objects::ObjAnim {
+                steps: 0,
+                step: 0,
+                state: 0,
+            },
             draw: 0,
             objectlist: vec![],
+            objstate: HashMap::new(),
             surflist: vec![],
             threads: Vec::new(),
         }
@@ -121,7 +142,10 @@ impl eframe::App for RenderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self {
             label,
-            blesys,
+            timer,
+            blectrl,
+            rbbctrl,
+            device_state,
             msgs,
             picked_path,
             data_ready,
@@ -129,11 +153,11 @@ impl eframe::App for RenderApp {
             cmd,
             sersys,
             portlist,
-            blelist,
-            blepersel,
             port_sel,
+            anim_state,
             draw,
             objectlist,
+            objstate,
             surflist,
             threads,
         } = self;
@@ -142,6 +166,12 @@ impl eframe::App for RenderApp {
         // Pick whichever suits you.
         // Tip: a good default choice is to just keep the `CentralPanel`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
+
+        // egui::Window::new("🔧 Settings")
+        //     .vscroll(true)
+        //     .show(ctx, |ui| {
+        //         ctx.settings_ui(ui);
+        //     });
 
         #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -165,7 +195,7 @@ impl eframe::App for RenderApp {
                         let filename = "./probe.txt".to_string();
                         let mut mesh = objects::Surf3D {
                             pos: [0.0, 0.0, 0.0],
-                            r: 2.0,
+                            param: HashMap::from([("r".to_string(), 2.0)]),
                             alph: 0.5,
                             beta: 0.5,
                             gamm: 0.5,
@@ -181,7 +211,7 @@ impl eframe::App for RenderApp {
                         objects::draw_3dmesh_surf(&mut mesh);
 
                         self.surflist.push(mesh);
-                        //self.draw = 1;
+
                         // if let Some(path) = rfd::FileDialog::new().pick_file() {
                         //     self.picked_path = Some(path.display().to_string());
                         //    data::processdata(path.display().to_string())
@@ -196,14 +226,16 @@ impl eframe::App for RenderApp {
                     }
                     if ui.button("draw").clicked() {
                         let mut circle1 = objects::Obj3D {
+                            tag: "circle".to_string(),
                             pos: [0.0, 0.0, 0.0],
-                            r: 1.0,
+                            param: HashMap::from([("r".to_string(), 1.0)]),
                             alph: 0.0,
                             beta: 0.0,
                             gamm: 0.0,
                             points: [vec![], vec![]], //X Y points for render
                             scale: 1.0,
                             res: 100, //resolution
+                            color: [250, 100, 50],
                         };
 
                         objects::draw_circle3d(&mut circle1);
@@ -233,39 +265,6 @@ impl eframe::App for RenderApp {
                     // dbg!();
                     // unreachable!();
                 }
-
-                ui.menu_button("BLE", |ui| {
-                    // if self.threads.len() > 0 {
-                    //     while self.threads.len() > 0 {
-                    //         let cur_thread = self.threads.remove(0); // moves it into cur_thread
-                    //         cur_thread.join().unwrap();
-                    //     }
-                    // }
-                    if ui.button("Start").clicked() {
-                        if self.blesys.state == BLEState::CREATED {
-                            let (tx_ble, rx_ble): (Sender<BLESys>, Receiver<BLESys>) =
-                                mpsc::channel::<BLESys>();
-                            let (tx_a, rx_a): (Sender<BLESys>, Receiver<BLESys>) =
-                                mpsc::channel::<BLESys>();
-                            self.msgs.ble_ch.0 = tx_a;
-                            self.msgs.ble_ch.1 = rx_ble;
-                            //self keeps tx_a and rx_w
-                            let builder = thread::Builder::new();
-                            self.threads.push(
-                                builder
-                                    .spawn(move || BLESys::startserv(tx_ble, rx_a))
-                                    .unwrap(),
-                            );
-
-                            self.cmd = CMDapp::BLEmsg;
-                        }
-                        println!("sync.")
-                    }
-                    if ui.button("Scan").clicked() {
-                        self.blesys.state = BLEState::SCAN;
-                        self.cmd = CMDapp::BLEmsg;
-                    }
-                });
             });
         });
 
@@ -331,27 +330,9 @@ impl eframe::App for RenderApp {
                 println!("{}", self.port_sel);
                 //let mut dataout: Vec<String> = vec![];
             }
+
             ui.separator();
-            ComboBox::from_label("BLE Port")
-                .selected_text(self.blepersel.to_string())
-                .show_ui(ui, |ui| {
-                    for i in 0..self.blelist.len() {
-                        ui.selectable_value(
-                            &mut self.blepersel,
-                            (*self.blelist[i]).to_string(),
-                            self.blelist[i].to_string(),
-                        );
-                    }
-                });
-            if ui.button("Connect").clicked() {
-                if self.blepersel != "".to_string() {
-                    self.blesys
-                        .status
-                        .insert("sel".to_string(), vec![self.blepersel.clone()]);
-                    self.blesys.state = BLEState::FIND;
-                    self.cmd = CMDapp::BLEmsg;
-                }
-            }
+
             //bottom
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 ui.horizontal(|ui| {
@@ -370,6 +351,36 @@ impl eframe::App for RenderApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
+            egui::Window::new(" BLE").vscroll(true).show(ctx, |ui| {
+                if ui.button("Start").clicked() {
+                    if self.blectrl.state == BLEState::CREATED {
+                        let (tx_ble, rx_ble): (Sender<BLESys>, Receiver<BLESys>) =
+                            mpsc::channel::<BLESys>();
+                        let (tx_a, rx_a): (Sender<BLESys>, Receiver<BLESys>) =
+                            mpsc::channel::<BLESys>();
+                        self.msgs.ble_ch.0 = tx_a;
+                        self.msgs.ble_ch.1 = rx_ble;
+                        //self keeps tx_a and rx_w
+                        let builder = thread::Builder::new();
+                        self.threads.push(
+                            builder
+                                .spawn(move || BLESys::startserv(tx_ble, rx_a))
+                                .unwrap(),
+                        );
+                        self.cmd = CMDapp::BLEmsg;
+                    }
+                    println!("sync.")
+                }
+
+                let msg = blesys::ble_gui(ui, &mut self.blectrl);
+                if msg == 1 {
+                    self.cmd = CMDapp::BLEmsg;
+                }
+            });
+
+            egui::Window::new("🔧 RBB").vscroll(true).show(ctx, |ui| {
+                crate::rbbsim::rbb_gui(ctx, ui, &mut self.rbbctrl);
+            });
 
             ui.heading("Preview");
             if self.objectlist.len() > 0 || self.surflist.len() > 0 {
@@ -380,8 +391,8 @@ impl eframe::App for RenderApp {
                     .height(300.0)
                     .view_aspect(1.0)
                     .data_aspect(1.0)
-                    .allow_scroll(false)
-                    .allow_drag(false)
+                    .allow_zoom(true)
+                    .allow_drag(true)
                     .show_axes([false; 2])
                     .show_background(false)
                     .legend(Legend::default());
@@ -394,8 +405,11 @@ impl eframe::App for RenderApp {
                             let plt: PlotPoints =
                                 (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
 
-                            let planned_line =
-                                Line::new(plt).color(Color32::from_rgb(100, 200, 100));
+                            let planned_line = Line::new(plt).color(Color32::from_rgb(
+                                obj.color[0],
+                                obj.color[1],
+                                obj.color[2],
+                            ));
                             plot_ui.line(planned_line);
                         }
                     }
@@ -438,26 +452,62 @@ impl eframe::App for RenderApp {
                 //self.data_ready = 0;
             }
 
-            egui::warn_if_debug_build(ui);
+          
         });
 
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally chose either panels OR windows.");
-            });
-        }
+     
     }
 
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {
+        let keys: Vec<Keycode> = self.device_state.get_keys();
+        for key in keys.iter() {
+            match key {
+                Keycode::A => {
+                    if self.objstate.contains_key("rbb") {
+                        let mut rbb = self.objstate.get("rbb").unwrap().clone();
+                        rbb.entry("a".to_string()).and_modify(|k| *k += 0.01);
+                        objects::draw_rbb(&mut rbb, &mut self.objectlist);
+                        self.objstate
+                            .entry("rbb".to_string())
+                            .and_modify(|k| *k = rbb);
+                    }
+                    self.cmd = CMDapp::UpdPrev;
+                }
+                Keycode::D => {
+                    if self.objstate.contains_key("rbb") {
+                        let mut rbb = self.objstate.get("rbb").unwrap().clone();
+                        rbb.entry("a".to_string()).and_modify(|k| *k += -0.01);
+                        objects::draw_rbb(&mut rbb, &mut self.objectlist);
+                        self.objstate
+                            .entry("rbb".to_string())
+                            .and_modify(|k| *k = rbb);
+                    }
+                    self.cmd = CMDapp::UpdPrev;
+                }
+                Keycode::W => {
+                    if self.objstate.contains_key("rbb") {
+                        let mut rbb = self.objstate.get("rbb").unwrap().clone();
+                        rbb.entry("x".to_string()).and_modify(|k| *k += -0.01);
+                        objects::draw_rbb(&mut rbb, &mut self.objectlist);
+                        self.objstate
+                            .entry("rbb".to_string())
+                            .and_modify(|k| *k = rbb);
+                    }
+                    self.cmd = CMDapp::UpdPrev;
+                }
+                // Keycode::Escape => todo!(),
+                // Keycode::Space => todo!(),
+                // Keycode::Enter => todo!(),
+                _ => println!("Pressed key: {:?}", key),
+            }
+        }
+
         match self.msgs.ble_ch.1.try_recv() {
             Ok(data) => {
                 println!("fromBLE: {:?}", data.status);
-                self.blesys = data.clone();
-                if self.blesys.status.contains_key("periph") {
-                    self.blelist = self.blesys.status.get("periph").unwrap().to_vec()
+                self.blectrl = data.clone();
+                if self.blectrl.status.contains_key("periph") {
+                    self.blectrl.blelist = self.blectrl.status.get("periph").unwrap().to_vec()
                 }
             }
             Err(_) => { /* handle sender disconnected */ } //Err(TryRecvError::Empty) => { /* handle no data available yet */ }
@@ -474,7 +524,7 @@ impl eframe::App for RenderApp {
         }
         match self.cmd {
             CMDapp::BLEmsg => {
-                if let Err(_) = self.msgs.ble_ch.0.send(self.blesys.clone()) {
+                if let Err(_) = self.msgs.ble_ch.0.send(self.blectrl.clone()) {
                     println!("BLE has stopped listening.")
                 }
                 thread::sleep(Duration::from_millis(200));
@@ -488,10 +538,57 @@ impl eframe::App for RenderApp {
                 self.cmd = CMDapp::Idle;
             }
             CMDapp::Idle => (),
+
             CMDapp::UpdPrev => {
                 //self.greetold = self.ui.greet.clone();
+
                 self.cmd = CMDapp::Idle;
             }
         }
     }
+
+    fn on_close_event(&mut self) -> bool {
+        true
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {}
+
+    fn auto_save_interval(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(30)
+    }
+
+    fn max_size_points(&self) -> egui::Vec2 {
+        egui::Vec2::INFINITY
+    }
+
+    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
+        // NOTE: a bright gray makes the shadows of the windows look weird.
+        // We use a bit of transparency so that if the user switches on the
+        // `transparent()` option they get immediate results.
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
+
+        // _visuals.window_fill() would also be a natural choice
+    }
+
+    fn persist_native_window(&self) -> bool {
+        true
+    }
+
+    fn persist_egui_memory(&self) -> bool {
+        true
+    }
+
+    fn warm_up_enabled(&self) -> bool {
+        false
+    }
+}
+
+pub fn rbb_gui(ui: &mut Ui) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.label("The triangle ");
+        ui.hyperlink_to("three-d", "https://github.com/asny/three-d");
+        ui.label(".");
+        ui.end_row();
+    });
 }

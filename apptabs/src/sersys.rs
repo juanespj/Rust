@@ -8,7 +8,8 @@ use std::{
     str,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-
+use tokio::time;
+use uuid::Uuid;
 
 use serialport::{available_ports, DataBits, SerialPortType, StopBits};
 use std::io::{self, Write};
@@ -23,7 +24,6 @@ pub enum SerState {
     IDLE, //logged in
     KILL,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerSys {
     pub state: SerState,
