@@ -33,7 +33,7 @@ pub enum BLEState {
     KILL,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BLESys {
+pub struct BLESys {    
     pub state: BLEState,
     pub status: HashMap<String, Vec<String>>,
     #[serde(skip)]
@@ -44,7 +44,7 @@ pub struct BLESys {
 
 impl Default for BLESys {
     fn default() -> Self {
-        Self {
+        Self {     
             state: BLEState::CREATED,
             status: HashMap::new(),
             adapter_list: vec![],           

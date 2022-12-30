@@ -35,6 +35,11 @@ enum CMDapp {
     UpdPrev,
     Sermsg,
 }
+
+pub struct Apps_open {
+    ble:bool,
+    rbb:bool,    
+}
 // if we add new fields, give them default values when deserializing old state
 // use macroquad::prelude::*;
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -45,6 +50,8 @@ pub struct RenderApp {
     // this how you opt-out of serialization of a member
     data_ready: u8,
     timer: Duration,
+    #[serde(skip)]
+    apps:Apps_open,
     picked_path: Option<String>,
     #[serde(skip)]
     sersys: SerSys,
@@ -85,6 +92,7 @@ impl Default for RenderApp {
             label: "Hello World!".to_owned(),
             cmd: CMDapp::Idle,
             picked_path: None,
+            apps:Apps_open {ble:false,rbb:true},
             timer: Duration::new(0, 0),
             data_ready: 0,
             device_state: DeviceState::new(),
@@ -96,7 +104,7 @@ impl Default for RenderApp {
                 dataf: (HashMap::new()),
             },
             blectrl: BLESys::default(),
-            rbbctrl: RbbCtrl::default(),
+            rbbctrl: RbbCtrl::default(),       
             msgs: Mesagging {
                 ble_ch: mpsc::channel::<BLESys>(),
                 ser_ch: mpsc::channel::<SerSys>(),
@@ -145,6 +153,7 @@ impl eframe::App for RenderApp {
             timer,
             blectrl,
             rbbctrl,
+            apps,
             device_state,
             msgs,
             picked_path,
@@ -351,36 +360,45 @@ impl eframe::App for RenderApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            egui::Window::new(" BLE").vscroll(true).show(ctx, |ui| {
-                if ui.button("Start").clicked() {
-                    if self.blectrl.state == BLEState::CREATED {
-                        let (tx_ble, rx_ble): (Sender<BLESys>, Receiver<BLESys>) =
-                            mpsc::channel::<BLESys>();
-                        let (tx_a, rx_a): (Sender<BLESys>, Receiver<BLESys>) =
-                            mpsc::channel::<BLESys>();
-                        self.msgs.ble_ch.0 = tx_a;
-                        self.msgs.ble_ch.1 = rx_ble;
-                        //self keeps tx_a and rx_w
-                        let builder = thread::Builder::new();
-                        self.threads.push(
-                            builder
-                                .spawn(move || BLESys::startserv(tx_ble, rx_a))
-                                .unwrap(),
-                        );
+            egui::Window::new(" BLE")
+                .enabled(false)
+                .open(&mut self.apps.ble)
+                .vscroll(true)
+                .show(ctx, |ui| {
+                    if ui.button("Start").clicked() {
+                        if self.blectrl.state == BLEState::CREATED {
+                            let (tx_ble, rx_ble): (Sender<BLESys>, Receiver<BLESys>) =
+                                mpsc::channel::<BLESys>();
+                            let (tx_a, rx_a): (Sender<BLESys>, Receiver<BLESys>) =
+                                mpsc::channel::<BLESys>();
+                            self.msgs.ble_ch.0 = tx_a;
+                            self.msgs.ble_ch.1 = rx_ble;
+                            //self keeps tx_a and rx_w
+                            let builder = thread::Builder::new();
+                            self.threads.push(
+                                builder
+                                    .spawn(move || BLESys::startserv(tx_ble, rx_a))
+                                    .unwrap(),
+                            );
+                            self.cmd = CMDapp::BLEmsg;
+                        }
+                        println!("sync.")
+                    }
+
+                    let msg = blesys::ble_gui(ui, &mut self.blectrl);
+                    if msg == 1 {
                         self.cmd = CMDapp::BLEmsg;
                     }
-                    println!("sync.")
-                }
+                });
 
-                let msg = blesys::ble_gui(ui, &mut self.blectrl);
-                if msg == 1 {
-                    self.cmd = CMDapp::BLEmsg;
-                }
-            });
-
-            egui::Window::new("🔧 RBB").vscroll(true).show(ctx, |ui| {
-                crate::rbbsim::rbb_gui(ctx, ui, &mut self.rbbctrl);
-            });
+            egui::Window::new("🔧 RBB")
+                .auto_sized()
+                .anchor(Align2::LEFT_TOP, [2.0, 2.0])
+                .vscroll(true)
+                .open(&mut self.apps.rbb)
+                .show(ctx, |ui| {
+                    crate::rbbsim::rbb_gui(ctx, ui, &mut self.rbbctrl);
+                });
 
             ui.heading("Preview");
             if self.objectlist.len() > 0 || self.surflist.len() > 0 {
@@ -451,11 +469,7 @@ impl eframe::App for RenderApp {
                 });
                 //self.data_ready = 0;
             }
-
-          
         });
-
-     
     }
 
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {

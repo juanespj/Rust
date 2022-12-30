@@ -11,7 +11,7 @@ use std::{
 use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
 use egui::Color32;
 use egui::*;
-
+use automatica::{units::ToDecibel, Complex, Tf};
 use crate::appmod::objects;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,7 +50,6 @@ impl Default for RbbCtrl {
             },
             objectlist: vec![],
             objstate: HashMap::new(),
-
             rbb: HashMap::from([
                 ("w".to_string(), 15.0),
                 ("h".to_string(), 0.10),
@@ -81,7 +80,7 @@ pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
                 ]);
                 rbb.insert(
                     "j".to_string(),
-                    rbb.get("w").unwrap() * rbb.get("h").unwrap().powf(3.0) / 12.0,
+                    rbb.get("w").unwrap() * rbb.get("h").unwrap().powf(3.0)/12.0,
                 );
                 objects::draw_rbb(&mut rbb, &mut rbbctrl.objectlist);
                 rbbctrl.anim_state.state = 0;
@@ -100,14 +99,6 @@ pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
                 rbbctrl.anim_state.steps = 500;
                 rbbctrl.anim_state.step = 0;
             }
-            ui.horizontal(|ui| {
-                ui.label("W: ");
-                ui.add(egui::DragValue::new(rbbctrl.rbb.get_mut("w").unwrap()).speed(0.1));
-                ui.end_row();
-                ui.label("A: ");
-                ui.add(egui::DragValue::new(rbbctrl.rbb.get_mut("a").unwrap()).speed(0.1));
-                ui.end_row();
-            });
         });
 
         if rbbctrl.objectlist.len() > 0 {
