@@ -1,5 +1,2 @@
-/JEapp/target
-/JEapp/dist
-/rustpiston/target
-/rustpiston/dist
-/apptabs/target
+apptabs/target
+tst/target
