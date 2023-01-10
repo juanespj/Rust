@@ -456,15 +456,7 @@ impl eframe::App for RenderApp {
                                 plot_ui.polygon(planned_surf);
                             }
                         }
-                        //   let rot:[f32;2]=[plot_ui.pointer_coordinate_drag_delta()[0],plot_ui.pointer_coordinate_drag_delta()[1] ];
-
-                        // if rot[0] != 0.0{
-                        //     self.objectlist[0].alph+=rot[0] as f64;
-                        // }
-                        // if rot[1] != 0.0{
-                        //     self.objectlist[0].beta+=rot[1]as f64;
-                        // }
-                        // println!("coords{:?} ",plot_ui.pointer_coordinate_drag_delta()[0] );
+                    
                     }
                 });
                 //self.data_ready = 0;

@@ -32,7 +32,7 @@ uuid = "1.1.2"
 serde_cr = { package = "serde", version = "1.0.140", features = ["derive"], default-features = false, optional = true }
 serde_bytes = { version = "0.11.6", optional = true }
 futures = "0.3.21"
-tokio = { version = "1.20.1", features = ["macros", "rt", "rt-multi-thread", "sync"] }
+tokio = { version = "1.23.1", features = ["macros", "rt", "rt-multi-thread", "sync"] }
 chrono = "0.4"
 
 [target.'cfg(target_os = "windows")'.dependencies]
