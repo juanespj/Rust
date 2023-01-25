@@ -1,12 +1,22 @@
 [package]
-name = "tst"
-version = "0.1.0"
+name = "bevy_egui"
+version = "0.19.0"
+authors = ["mvlabat <mvlabat@gmail.com>"]
+description = "A plugin for Egui integration into Bevy"
+license = "MIT"
 edition = "2021"
+repository = "https://github.com/mvlabat/bevy_egui"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-eframe = "0.16"
-chrono = "0.4"
-num-traits = "0.2"
-egui-datepicker = "0.3"
+egui = { version = "0.20.1", default-features = false, features = ["bytemuck"] }
+egui-winit = { version = "0.20.0", default-features = false }
+egui_glium = "0.20.1"
+ahash = { version = "0.8.1", default-features = false, features = [
+    "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
+    "std",
+] }
+bytemuck = "1.7"
+glium = "0.32"
+image = "0.24.5"
