@@ -19,8 +19,10 @@ use uuid::Uuid;
 /// Only devices whose name contains this string will be tried.
 const PERIPHERAL_NAME_MATCH_FILTER: &str = "Feeder";
 /// UUID of the characteristic for which we should subscribe to notifications.
-const TRIG_CHARACTERISTIC_UUID: Uuid = Uuid::from_u128(0x357a1221_2ae4_4b08_8ea1_06fa478234cb);
-const TIMESTAMP_CHARACTERISTIC_UUID: Uuid = Uuid::from_u128(0x65F52242_2AF2_473B_A939_57E5753C92B5);
+const TRIG_CHAR_UUID: Uuid = Uuid::from_u128(0x357a1221_2ae4_4b08_8ea1_06fa478234cb);
+const TIMESTAMP_CHAR_UUID: Uuid = Uuid::from_u128(0x65F52242_2AF2_473B_A939_57E5753C92B5);
+const QUANTITY_CHAR_UUID: Uuid = Uuid::from_u128(0xbe9d244a_169e_4e1e_a4a1_b661f0f14da6);
+const SPD_CHAR_UUID: Uuid = Uuid::from_u128(0xF055B698_DFA9_4D83_820B_893566B0F6C9);
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BLEState {
@@ -33,23 +35,23 @@ pub enum BLEState {
     KILL,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BLESys {    
+pub struct BLESys {
     pub state: BLEState,
     pub status: HashMap<String, Vec<String>>,
     #[serde(skip)]
-    adapter_list: Vec<Adapter>,   
+    adapter_list: Vec<Adapter>,
     pub blepersel: String,
     pub blelist: Vec<String>,
 }
 
 impl Default for BLESys {
     fn default() -> Self {
-        Self {     
+        Self {
             state: BLEState::CREATED,
             status: HashMap::new(),
-            adapter_list: vec![],           
+            adapter_list: vec![],
             blepersel: "-".to_string(),
-            blelist: vec![],   
+            blelist: vec![],
         }
     }
 }
@@ -79,38 +81,41 @@ impl BLESys {
 
         let mut newmsg: u8 = 0;
         let mut loop_lock: u8 = 0;
+        let mut prev_state=sys.state.clone();
         while loop_lock == 0 {
-            match rx_a.try_recv() {
-                Ok(msg) => {
-                    println!("fromAPP: {:?}", msg.state);
-                    match msg.state {
-                        BLEState::CREATED => {
-                            sys.state = BLEState::IDLE;
-                            newmsg = 1;
-                        }
-                        BLEState::FIND => {
-                            if msg.status.contains_key("sel") {
-                                let sel = msg.status.get("sel").unwrap().to_vec();
-                                sys.status.insert("sel".to_string(), sel);
-                                self::find_per(&mut sys).await?;
-                            }
-
-                            sys.state = BLEState::IDLE;
-                            newmsg = 1;
-                        }
-                        BLEState::SCAN => {
-                            sys.state = BLEState::SCAN;
-                            self::list_periph(&mut sys).await?;
-                            if sys.status.contains_key("periph") {
-                                newmsg = 1;
-                            }
-                        }
-                        BLEState::IDLE => {}
-                        BLEState::KILL => loop_lock = 1,
-                        _ => {}
+           
+            if prev_state!= sys.state{
+                match sys.state {
+                    BLEState::CREATED => {
+                        sys.state = BLEState::SCAN;
+                        newmsg = 1;
                     }
+                    BLEState::FIND => {
+                        if sys.status.contains_key("sel") {
+                            let sel = sys.status.get("sel").unwrap().to_vec();
+                            sys.status.insert("sel".to_string(), sel);
+                            self::find_per(&mut sys).await?;
+                        }
+                        sys.state = BLEState::IDLE;
+                        newmsg = 1;
+                    }
+                    BLEState::SCAN => {
+                        sys.state = BLEState::SCAN;
+                        self::list_periph(&mut sys).await?;
+                        if sys.status.contains_key("periph") {
+                            newmsg = 1;
+                        }
+                    }
+                    BLEState::IDLE => { match rx_a.try_recv()  {
+                        Ok(msg) => {
+                            println!("fromAPP: {:?}", msg.state);
+                            sys.state=msg.state;
+                        }
+                        Err(_) => { /* handle sender disconnected */ }
+                    }}
+                    BLEState::KILL => loop_lock = 1,
+                    _ => {}
                 }
-                Err(_) => { /* handle sender disconnected */ }
             }
             // loop_lock = 1;
             if newmsg == 1 {
@@ -135,6 +140,12 @@ async fn find_per(sys: &mut BLESys) -> color_eyre::Result<()> {
             .expect("Can't scan BLE adapter for connected devices...");
         time::sleep(Duration::from_secs(3)).await;
         for per in adapter.peripherals().await.unwrap() {
+            let properties = per.properties().await?;
+            let is_connected = per.is_connected().await?;
+            let local_name = properties
+                .unwrap()
+                .local_name
+                .unwrap_or(String::from("(peripheral name unknown)"));
             if per
                 .properties()
                 .await
@@ -145,7 +156,71 @@ async fn find_per(sys: &mut BLESys) -> color_eyre::Result<()> {
                 .any(|name| name.contains(per_tofind))
             {
                 println!("found DEV {:?}", per);
-                //return Some(p);
+                if !is_connected {
+                    // Connect if we aren't already connected.
+                    if let Err(err) = per.connect().await {
+                        eprintln!("Error connecting to peripheral, skipping: {}", err);
+                        continue;
+                    }
+                }
+                let is_connected = per.is_connected().await?;
+                println!(
+                    "Now connected ({:?}) to peripheral {:?}.",
+                    is_connected, &local_name
+                );
+                if is_connected {
+                    println!("Discover peripheral {:?} services...", sys.blepersel);
+                    per.discover_services().await?;
+                    let mut found = 0;
+                    for characteristic in per.characteristics() {
+                        found = 0;
+                        match characteristic.uuid {
+                            TIMESTAMP_CHAR_UUID => {
+                                println!("Timestamp");
+                                found = 1;
+                            }
+                            QUANTITY_CHAR_UUID => {
+                                println!("Quantity");
+                                found = 1;
+                            }
+                            SPD_CHAR_UUID => {
+                                println!("Speed");
+                                found = 1;
+                            }
+                            TRIG_CHAR_UUID => {
+                                println!("Trigger");
+                                found = 1;
+                            }
+                            _ => {}
+                        }
+                        if found == 0 {
+                            println!("Checking characteristic {:?}", characteristic);
+                        }else{
+
+                        }
+
+                        // Subscribe to notifications from the characteristic with the selected
+                        // UUID.
+                        // if characteristic.uuid == NOTIFY_CHARACTERISTIC_UUID
+                        //     && characteristic.properties.contains(CharPropFlags::NOTIFY)
+                        // {
+                        //     println!("Subscribing to characteristic {:?}", characteristic.uuid);
+                        //     per.subscribe(&characteristic).await?;
+                        //     // Print the first 4 notifications received.
+                        //     let mut notification_stream =
+                        //     per.notifications().await?.take(4);
+                        //     // Process while the BLE connection is not broken or stopped.
+                        //     while let Some(data) = notification_stream.next().await {
+                        //         println!(
+                        //             "Received data from {:?} [{:?}]: {:?}",
+                        //             local_name, data.uuid, data.value
+                        //         );
+                        //     }
+                        // }
+                    }
+                    println!("Disconnecting from peripheral {:?}...", local_name);
+                    per.disconnect().await?;
+                }
             }
             // println!("{:?}",p);
         }
@@ -176,12 +251,14 @@ async fn list_periph(sys: &mut BLESys) -> color_eyre::Result<()> {
                     .unwrap()
                     .local_name
                     .unwrap_or(String::from("unknown"));
+
                 if !local_name.contains("unknown") {
                     list.push(local_name.clone());
                 }
                 if is_connected {
                     listconn.push(local_name);
                 }
+
                 // println!(
                 //     "Peripheral {:?} is connected: {:?}",
                 //     local_name, is_connected
@@ -212,7 +289,7 @@ pub fn ble_gui(ui: &mut Ui, blectrl: &mut BLESys) -> u8 {
     // }
     // });
     let mut msg = 0;
-    
+
     if ui.button("Scan").clicked() {
         blectrl.state = BLEState::SCAN;
         msg = 1;
@@ -231,18 +308,19 @@ pub fn ble_gui(ui: &mut Ui, blectrl: &mut BLESys) -> u8 {
         });
     if ui.button("Connect").clicked() {
         if blectrl.blepersel != "".to_string() {
-            blectrl.status
+            blectrl
+                .status
                 .insert("sel".to_string(), vec![blectrl.blepersel.clone()]);
-                blectrl.state = BLEState::FIND;
+            blectrl.state = BLEState::FIND;
             msg = 1;
         }
     }
     return msg;
 }
 
-// fn per_chara(){
-
-//         println!("Discover peripheral {:?} services...", local_name);
+// async fn per_chara(,sys: &mut BLESys)-> color_eyre::Result<()>{
+//     peripheral:&mut  dyn Peripheral
+//         println!("Discover peripheral {:?} services...", sys.blepersel);
 //         peripheral.discover_services().await?;
 //         for char in peripheral.characteristics() {
 //             //   println!("Checking characteristic {:?}", characteristic);
@@ -295,7 +373,8 @@ pub fn ble_gui(ui: &mut Ui, blectrl: &mut BLESys) -> u8 {
 //             //     }
 //             // }
 
-//         println!("Disconnecting from peripheral {:?}...", local_name);
+//         println!("Disconnecting from peripheral {:?}...", sys.blepersel);
 //         peripheral.disconnect().await?;
 //     }
+//     Ok(())
 // }

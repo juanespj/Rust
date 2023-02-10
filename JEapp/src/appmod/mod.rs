@@ -1,18 +1,18 @@
 use egui::widgets::plot::{Legend, Line, Plot, PlotPoints, Polygon};
 //Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine,
 //  MarkerShape,  PlotImage, PlotPoint,  Points, Text, VLine,  LineStyle,};
-use core::f64::consts::PI;
+// use core::f64::consts::PI;
 use egui::*;
 pub mod data;
 pub mod objects;
 
 //pub use serial::SerialCtrl;
-use crate::blesys::{self, ble_gui, BLEState, BLESys};
-use crate::rbbsim::{RbbCtrl, RbbState};
+use crate::blesys::{self,  BLEState, BLESys};
+use crate::rbbsim::{RbbCtrl, };//RbbState
 use crate::sersys::{SerState, SerSys};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 use device_query::{DeviceQuery, DeviceState, Keycode};
-use num::signum;
+// use num::signum;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter::Iterator;
@@ -20,7 +20,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{
     thread,
-    time::{Duration, Instant},
+    time::{Duration, },//Instant
 };
 
 pub struct Mesagging {
@@ -36,7 +36,7 @@ enum CMDapp {
     Sermsg,
 }
 
-pub struct Apps_open {
+pub struct AppsOpen {
     ble:bool,
     rbb:bool,    
 }
@@ -51,7 +51,7 @@ pub struct RenderApp {
     data_ready: u8,
     timer: Duration,
     #[serde(skip)]
-    apps:Apps_open,
+    apps:AppsOpen,
     picked_path: Option<String>,
     #[serde(skip)]
     sersys: SerSys,
@@ -92,7 +92,7 @@ impl Default for RenderApp {
             label: "Hello World!".to_owned(),
             cmd: CMDapp::Idle,
             picked_path: None,
-            apps:Apps_open {ble:false,rbb:true},
+            apps:AppsOpen {ble:true,rbb:false},
             timer: Duration::new(0, 0),
             data_ready: 0,
             device_state: DeviceState::new(),
@@ -361,7 +361,7 @@ impl eframe::App for RenderApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             egui::Window::new(" BLE")
-                .enabled(false)
+                .enabled(true)
                 .open(&mut self.apps.ble)
                 .vscroll(true)
                 .show(ctx, |ui| {
