@@ -132,10 +132,14 @@ fn listports(sys: &mut SerSys) {
                         //     "     Serial Number: {}",
                         //     info.serial_number.as_ref().map_or("", String::as_str)
                         // );
-                        // println!(
-                        //     "      Manufacturer: {}",
-                        //     info.manufacturer.as_ref().map_or("", String::as_str)
-                        // );
+                        let mfg =info.manufacturer.as_ref().map_or("", String::as_str);
+                        if mfg.contains("Cypress"){
+                            
+                        }
+                        println!(
+                            "      Manufacturer: {}",
+                            info.manufacturer.as_ref().map_or("", String::as_str)
+                        );
                         println!(
                             "           Product: {}",
                             info.product.as_ref().map_or("", String::as_str)

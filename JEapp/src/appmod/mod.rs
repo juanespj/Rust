@@ -7,8 +7,14 @@ pub mod data;
 pub mod objects;
 
 //pub use serial::SerialCtrl;
+<<<<<<< Updated upstream
 use crate::blesys::{self,  BLEState, BLESys};
 use crate::rbbsim::{RbbCtrl, };//RbbState
+=======
+use crate::blesys::{self, ble_gui, BLEState, BLESys};
+use crate::rbbsim::{RbbCtrl, RbbState};
+use crate::ltspicesim::{SimCtrl, SimState};
+>>>>>>> Stashed changes
 use crate::sersys::{SerState, SerSys};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 use device_query::{DeviceQuery, DeviceState, Keycode};
@@ -38,7 +44,8 @@ enum CMDapp {
 
 pub struct AppsOpen {
     ble:bool,
-    rbb:bool,    
+    rbb:bool, 
+    ltsim:bool,   
 }
 // if we add new fields, give them default values when deserializing old state
 // use macroquad::prelude::*;
@@ -73,6 +80,8 @@ pub struct RenderApp {
     #[serde(skip)]
     rbbctrl: RbbCtrl,
     #[serde(skip)]
+    ltsctrl: SimCtrl,
+    #[serde(skip)]
     cmd: CMDapp,
     #[serde(skip)]
     objstate: HashMap<String, HashMap<String, f64>>,
@@ -92,7 +101,12 @@ impl Default for RenderApp {
             label: "Hello World!".to_owned(),
             cmd: CMDapp::Idle,
             picked_path: None,
+<<<<<<< Updated upstream
             apps:AppsOpen {ble:true,rbb:false},
+=======
+            apps:Apps_open {ble:false,rbb:false,ltsim:true},
+
+>>>>>>> Stashed changes
             timer: Duration::new(0, 0),
             data_ready: 0,
             device_state: DeviceState::new(),
@@ -105,6 +119,7 @@ impl Default for RenderApp {
             },
             blectrl: BLESys::default(),
             rbbctrl: RbbCtrl::default(),       
+            ltsctrl: SimCtrl::default(), 
             msgs: Mesagging {
                 ble_ch: mpsc::channel::<BLESys>(),
                 ser_ch: mpsc::channel::<SerSys>(),
@@ -153,6 +168,7 @@ impl eframe::App for RenderApp {
             timer,
             blectrl,
             rbbctrl,
+            ltsctrl,
             apps,
             device_state,
             msgs,
@@ -399,7 +415,14 @@ impl eframe::App for RenderApp {
                 .show(ctx, |ui| {
                     crate::rbbsim::rbb_gui(ctx, ui, &mut self.rbbctrl);
                 });
-
+                egui::Window::new("🔧 LTSim")
+                .auto_sized()
+                .anchor(Align2::LEFT_TOP, [2.0, 2.0])
+                .vscroll(true)
+                .open(&mut self.apps.ltsim)
+                .show(ctx, |ui| {
+                    crate::ltspicesim::lts_gui(ctx, ui, &mut self.ltsctrl);
+                });
             ui.heading("Preview");
             if self.objectlist.len() > 0 || self.surflist.len() > 0 {
                 let plot = Plot::new("preview")
@@ -567,14 +590,6 @@ impl eframe::App for RenderApp {
         egui::Vec2::INFINITY
     }
 
-    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
-        // NOTE: a bright gray makes the shadows of the windows look weird.
-        // We use a bit of transparency so that if the user switches on the
-        // `transparent()` option they get immediate results.
-        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
-
-        // _visuals.window_fill() would also be a natural choice
-    }
 
     fn persist_native_window(&self) -> bool {
         true

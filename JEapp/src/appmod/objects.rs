@@ -330,9 +330,11 @@ pub fn draw_rbb(rbb: &mut HashMap<String, f64>, objectlist: &mut Vec<Obj3D>) {
 
     draw_rect(&mut rbb_beam);
 
-    let ballx = rbb.get("x").unwrap().clone();
+    
     let beama = rbb.get("a").unwrap().clone();
-    let bally = rbb.get("h").unwrap().clone() / 2.0 + rbb.get("r").unwrap().clone();
+    let beamh=rbb.get("h").unwrap().clone() ;
+    let ballx = rbb.get("x").unwrap().clone()-beamh/2.0*beama.sin();
+    let bally = beamh/2.0*beama.cos() + rbb.get("r").unwrap().clone();
     let mut rbb_ball = Obj3D {
         tag: "rbb_ball".to_string(),
         pos: [

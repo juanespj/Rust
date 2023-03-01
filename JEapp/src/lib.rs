@@ -2,6 +2,7 @@
 pub mod blesys;
 pub mod sersys;
 pub mod rbbsim;
+pub mod ltspicesim;
 mod appmod;
 pub use appmod::RenderApp;
 

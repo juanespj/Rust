@@ -20,6 +20,7 @@ pub enum RbbState {
     RUNNING,
     IDLE, //logged in
     KILL,
+    RESET,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,32 +55,30 @@ impl Default for RbbCtrl {
             rbb: HashMap::from([
                 ("w".to_string(), 15.0),
                 ("h".to_string(), 0.10),
-                ("a".to_string(), 0.00), //incline
+                ("a".to_string(), 0.00),
+                ("av".to_string(), 0.00), 
+                ("aa".to_string(), 0.00), 
                 ("r".to_string(), 0.5),
                 ("x".to_string(), 0.0),
                 ("xv".to_string(), 0.0),
                 ("xa".to_string(), 0.0),
                 ("m".to_string(), 1.0),
+                ("Izz".to_string(), 10.0),
+                ("Tmax".to_string(), 5.0),
             ]),
         }
     }
 }
 
 pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
+    
+    let mut rbb=rbbctrl.rbb.clone();
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
-            if ui.button("rbb").clicked() {
-                let mut rbb: HashMap<String, f64> = HashMap::from([
-                    ("w".to_string(), 15.0),
-                    ("h".to_string(), 0.10),
-                    ("a".to_string(), 0.00),
-                    ("r".to_string(), 0.5),
-                    ("x".to_string(), 0.0),
-                    ("xv".to_string(), 0.0),
-                    ("xa".to_string(), 0.0),
-                    ("m".to_string(), 1.0),
-                ]);
-                rbb.insert(
+            if ui.button("rbb").clicked() {              
+            
+                
+                rbbctrl.rbb.insert(
                     "j".to_string(),
                     rbb.get("w").unwrap() * rbb.get("h").unwrap().powf(3.0) / 12.0,
                 );
@@ -89,10 +88,10 @@ pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
                     rbbctrl
                         .objstate
                         .entry("Reset".to_string())
-                        .and_modify(|k| *k = rbb);
+                        .and_modify(|k| *k = rbb.clone());
                 } else {
                     objects::draw_rbb(&mut rbb, &mut rbbctrl.objectlist);
-                    rbbctrl.objstate.insert("rbb".to_string(), rbb);
+                    rbbctrl.objstate.insert("rbb".to_string(), rbb.clone());
                 }
             }
             if ui.button("Run").clicked() {
@@ -105,7 +104,9 @@ pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
                 ui.add(egui::DragValue::new(rbbctrl.rbb.get_mut("w").unwrap()).speed(0.1));
                 ui.end_row();
                 ui.label("A: ");
-                ui.add(egui::DragValue::new(rbbctrl.rbb.get_mut("a").unwrap()).speed(0.1));
+                let mut ang=rbbctrl.rbb.get("a").unwrap()*180.0/PI;
+                ui.add(egui::DragValue::new(&mut ang).speed(0.1));
+                rbbctrl.rbb.entry("a".to_string()).and_modify(|k| *k =ang/180.0*PI);
                 ui.end_row();
             });
         });
@@ -220,11 +221,19 @@ pub fn rbb_anim(rbbctrl: &mut RbbCtrl) {
     let mut rbb = rbbctrl.objstate.get("rbb").unwrap().clone();
     let x_sp = 3.0 * signum(((rbbctrl.anim_state.step as f64) * PI / 50.0).cos()); //square
 
-    let a_out = 0.05 * ((rbbctrl.anim_state.step as f64) / 10.0).cos();
-
+    if !rbb.contains_key("xold") {
+        rbb.entry("xold".to_string()).or_insert(0.0);
+        rbb.entry("aold".to_string()).or_insert(0.0);
+    }
+    // rbb.entry("aa".to_string()).or_insert(default)
+    // rbb.get("av") 
+    // ("aa".to_string(), 0.00), 
+   // let a_out = 0.05 * ((rbbctrl.anim_state.step as f64) / 10.0).cos();
+   let a_out = 0.05 * ((rbbctrl.anim_state.step as f64) / 10.0).cos();
     let xv_out = rbb.get("xv").unwrap() - rbb.get("xa").unwrap() * dt;
     let x_out = rbb.get("x").unwrap() + xv_out * dt - 0.5 * rbb.get("xa").unwrap() * dt * dt;
-
+    rbb.entry("xold".to_string()).or_insert(x_out.clone());
+    rbb.entry("aold".to_string()).or_insert(a_out.clone());
     rbbctrl
         .plt
         .entry("t".to_string())
