@@ -7,14 +7,9 @@ pub mod data;
 pub mod objects;
 
 //pub use serial::SerialCtrl;
-<<<<<<< Updated upstream
-use crate::blesys::{self,  BLEState, BLESys};
-use crate::rbbsim::{RbbCtrl, };//RbbState
-=======
 use crate::blesys::{self, ble_gui, BLEState, BLESys};
 use crate::rbbsim::{RbbCtrl, RbbState};
 use crate::ltspicesim::{SimCtrl, SimState};
->>>>>>> Stashed changes
 use crate::sersys::{SerState, SerSys};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 use device_query::{DeviceQuery, DeviceState, Keycode};
@@ -101,12 +96,8 @@ impl Default for RenderApp {
             label: "Hello World!".to_owned(),
             cmd: CMDapp::Idle,
             picked_path: None,
-<<<<<<< Updated upstream
-            apps:AppsOpen {ble:true,rbb:false},
-=======
-            apps:Apps_open {ble:false,rbb:false,ltsim:true},
+            apps:AppsOpen{ble:false,rbb:false,ltsim:true},
 
->>>>>>> Stashed changes
             timer: Duration::new(0, 0),
             data_ready: 0,
             device_state: DeviceState::new(),
