@@ -9,6 +9,7 @@ rust-version = "1.63"
 [features]
 serde = ["uuid/serde", "serde_cr", "serde_bytes"]
 
+
 [dependencies]
 egui = "0.21.0"
 num = "0.4.0"
@@ -35,6 +36,10 @@ futures = "0.3.21"
 tokio = { version = "1.25", features = ["macros", "rt", "rt-multi-thread", "sync"] }
 chrono = "0.4"
 sysinfo = "0.26.7"
+byteorder = "0.4.2"
+gnuplot = "0.0.20"
+statistical = "0.1.1"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.43.0", features = ["Devices_Bluetooth", "Devices_Bluetooth_GenericAttributeProfile", "Devices_Bluetooth_Advertisement", "Devices_Radios", "Foundation_Collections", "Foundation", "Storage_Streams"] }
 

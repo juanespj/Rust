@@ -3,6 +3,11 @@ pub mod blesys;
 pub mod sersys;
 pub mod rbbsim;
 pub mod ltspicesim;
+
+mod ltspice;
+pub use ltspice::SteppedSimulation;
+
 mod appmod;
 pub use appmod::RenderApp;
+
 

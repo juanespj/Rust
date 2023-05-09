@@ -8,8 +8,8 @@ pub mod objects;
 
 //pub use serial::SerialCtrl;
 use crate::blesys::{self, ble_gui, BLEState, BLESys};
-use crate::rbbsim::{RbbCtrl, RbbState};
 use crate::ltspicesim::{SimCtrl, SimState};
+use crate::rbbsim::{RbbCtrl, RbbState};
 use crate::sersys::{SerState, SerSys};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 use device_query::{DeviceQuery, DeviceState, Keycode};
@@ -21,7 +21,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{
     thread,
-    time::{Duration, },//Instant
+    time::Duration, //Instant
 };
 
 pub struct Mesagging {
@@ -38,9 +38,9 @@ enum CMDapp {
 }
 
 pub struct AppsOpen {
-    ble:bool,
-    rbb:bool, 
-    ltsim:bool,   
+    ble: bool,
+    rbb: bool,
+    ltsim: bool,
 }
 // if we add new fields, give them default values when deserializing old state
 // use macroquad::prelude::*;
@@ -53,7 +53,7 @@ pub struct RenderApp {
     data_ready: u8,
     timer: Duration,
     #[serde(skip)]
-    apps:AppsOpen,
+    apps: AppsOpen,
     picked_path: Option<String>,
     #[serde(skip)]
     sersys: SerSys,
@@ -96,7 +96,11 @@ impl Default for RenderApp {
             label: "Hello World!".to_owned(),
             cmd: CMDapp::Idle,
             picked_path: None,
-            apps:AppsOpen{ble:false,rbb:false,ltsim:true},
+            apps: AppsOpen {
+                ble: false,
+                rbb: false,
+                ltsim: true,
+            },
 
             timer: Duration::new(0, 0),
             data_ready: 0,
@@ -109,8 +113,8 @@ impl Default for RenderApp {
                 dataf: (HashMap::new()),
             },
             blectrl: BLESys::default(),
-            rbbctrl: RbbCtrl::default(),       
-            ltsctrl: SimCtrl::default(), 
+            rbbctrl: RbbCtrl::default(),
+            ltsctrl: SimCtrl::default(),
             msgs: Mesagging {
                 ble_ch: mpsc::channel::<BLESys>(),
                 ser_ch: mpsc::channel::<SerSys>(),
@@ -253,8 +257,20 @@ impl eframe::App for RenderApp {
                             res: 100, //resolution
                             color: [250, 100, 50],
                         };
-
-                        objects::draw_circle3d(&mut circle1);
+                        let mut trap = objects::Obj3D {
+                            tag: "trap".to_string(),
+                            pos: [0.0, 0.0, 0.0],
+                            param: HashMap::from([("h".to_string(), 3.0),("w".to_string(), 5.0),("a".to_string(), 0.0),("s".to_string(), 0.0)]),
+                            alph: 0.0,
+                            beta: 0.0,
+                            gamm: 0.0,
+                            points: [vec![], vec![]], //X Y points for render
+                            scale: 1.0,
+                            res: 100, //resolution
+                            color: [250, 100, 50],
+                        };
+                        objects::draw_trap(&mut trap);
+                        // objects::draw_circle3d(&mut circle1);
                         self.objectlist.push(circle1);
                         self.draw = 1;
                     }
@@ -276,7 +292,6 @@ impl eframe::App for RenderApp {
                         );
                         self.cmd = CMDapp::Sermsg;
                     }
-
                     //   listports(&mut self.portlist);
                     // dbg!();
                     // unreachable!();
@@ -406,7 +421,7 @@ impl eframe::App for RenderApp {
                 .show(ctx, |ui| {
                     crate::rbbsim::rbb_gui(ctx, ui, &mut self.rbbctrl);
                 });
-                egui::Window::new("🔧 LTSim")
+            egui::Window::new("🔧 LTSim")
                 .auto_sized()
                 .anchor(Align2::LEFT_TOP, [2.0, 2.0])
                 .vscroll(true)
@@ -420,12 +435,12 @@ impl eframe::App for RenderApp {
                     .include_x(0.0)
                     .include_y(0.0)
                     .width(600.0)
-                    .height(300.0)
+                    .height(600.0)
                     .view_aspect(1.0)
                     .data_aspect(1.0)
                     .allow_zoom(true)
                     .allow_drag(true)
-                    .show_axes([false; 2])
+                    .show_axes([true; 2])
                     .show_background(false)
                     .legend(Legend::default());
 
@@ -470,7 +485,6 @@ impl eframe::App for RenderApp {
                                 plot_ui.polygon(planned_surf);
                             }
                         }
-                    
                     }
                 });
                 //self.data_ready = 0;
@@ -580,7 +594,6 @@ impl eframe::App for RenderApp {
     fn max_size_points(&self) -> egui::Vec2 {
         egui::Vec2::INFINITY
     }
-
 
     fn persist_native_window(&self) -> bool {
         true
