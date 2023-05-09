@@ -100,9 +100,9 @@ pub fn lts_gui(ctx: &Context, ui: &mut Ui, simctrl: &mut SimCtrl) {
                     }
                 }
                 let mut foil_on: bool = false;
-                if simctrl.sim.get("K").unwrap().contains("L1 L2")  {
-                    foil_on = true;
-                }
+                // if simctrl.sim.get("K").unwrap().contains("L1 L2")  {
+                //     foil_on = true;
+                // }
                 if ui
                     .selectable_label(foil_on, "with Foil".to_string())
                     .clicked()
