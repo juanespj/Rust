@@ -1,9 +1,10 @@
 use ndarray::{arr1, arr2, Array1};
 use num::signum;
 use std::collections::HashMap;
+use std::iter;
 use std::num::*;
 
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ObjAnim {
     pub steps: u128,
     pub step: u128,
@@ -119,6 +120,53 @@ pub fn draw_rect(obj: &mut Obj3D) {
         let x = 0.5 * w * signum(t.cos());
         let y = 0.5 * h * signum(t.sin());
         let xyz = arr1(&[x * a.cos() - y * a.sin(), y * a.cos() + x * a.sin(), u]);
+        let new_vect = rot_mat.dot(&xyz) + &pos_vect;
+        obj.points[0].push(new_vect[0]);
+        obj.points[1].push(new_vect[1]);
+    }
+    //println!("{:?}",obj.points);
+}
+
+//draw trapezoid
+// x=u(2−v)−1
+// y=v
+// 0≤u≤1, 0≤v≤1
+pub fn draw_trap(obj: &mut Obj3D) {
+    let z = 0.0;
+    obj.points[0].clear();
+    obj.points[1].clear();
+    let pos_vect = arr1(&[obj.pos[0], obj.pos[1], 0.0]);
+    let rot_alpha = arr2(&[
+        [1.0, 0.0, 0.0],
+        [0.0, obj.alph.cos(), -obj.alph.sin()],
+        [0.0, obj.alph.sin(), obj.alph.cos()],
+    ]);
+    let rot_beta = arr2(&[
+        [obj.beta.cos(), 0.0, obj.beta.sin()],
+        [0.0, 1.0, 0.0],
+        [-obj.beta.sin(), 0.0, obj.beta.cos()],
+    ]);
+
+    let rot_gamm = arr2(&[
+        [obj.alph.cos(), -obj.alph.sin(), 0.0],
+        [obj.alph.sin(), obj.alph.cos(), 0.0],
+        [0.0, 0.0, 1.0],
+    ]);
+    let rot_mat = rot_alpha.dot(&rot_beta).dot(&rot_gamm);
+    let mut t: f64 = 0.0;
+    let w = *obj.param.get("w").unwrap();
+    let h = *obj.param.get("h").unwrap();
+    let a = *obj.param.get("a").unwrap();
+    // x=
+    // y=v
+
+    for _i in 0..obj.res {
+        t += 2.0 * PI / (obj.res as f64+1.0);
+        let u = 0.5 * w * signum(t.cos()) ; // 0 - w
+        let v = 0.5 * h * signum(t.sin()); // 0 - h
+        let x = u * (h - v) - w;
+        let y = v;
+        let xyz = arr1(&[x * a.cos() - y * a.sin(), y * a.cos() + x * a.sin(), z]);
         let new_vect = rot_mat.dot(&xyz) + &pos_vect;
         obj.points[0].push(new_vect[0]);
         obj.points[1].push(new_vect[1]);
@@ -330,9 +378,10 @@ pub fn draw_rbb(rbb: &mut HashMap<String, f64>, objectlist: &mut Vec<Obj3D>) {
 
     draw_rect(&mut rbb_beam);
 
-    let ballx = rbb.get("x").unwrap().clone();
     let beama = rbb.get("a").unwrap().clone();
-    let bally = rbb.get("h").unwrap().clone() / 2.0 + rbb.get("r").unwrap().clone();
+    let beamh = rbb.get("h").unwrap().clone();
+    let ballx = rbb.get("x").unwrap().clone() - beamh / 2.0 * beama.sin();
+    let bally = beamh / 2.0 * beama.cos() + rbb.get("r").unwrap().clone();
     let mut rbb_ball = Obj3D {
         tag: "rbb_ball".to_string(),
         pos: [
