@@ -1,8 +1,8 @@
-use ndarray::{arr1, arr2, Array1};
+use ndarray::{arr1, arr2};//, Array1
 use num::signum;
 use std::collections::HashMap;
-use std::iter;
-use std::num::*;
+// use std::iter;
+// use std::num::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct ObjAnim {
@@ -38,19 +38,19 @@ pub struct Surf3D {
 
 pub const PI: f64 = 3.14159265358979323846264338327950288f64; // 3.1415926535897931f64
 
-pub fn draw_circle2d(obj: &mut Obj3D) {
-    obj.points[0].clear();
-    obj.points[1].clear();
-    //let c = c.trans(0.0, 0.0); //origin
-    let mut t: f64 = 0.0;
-    let r = obj.param.get("r").unwrap();
-    //let transform = c.transform.trans(0.0, 0.0).rot_rad(0.0).trans(0.0, 0.0);
-    for i in 0..obj.res + 1 {
-        t += 2.0 * PI / (obj.res as f64);
-        obj.points[0].push(obj.pos[0] + r * t.cos());
-        obj.points[1].push(obj.pos[1] + r * t.sin());
-    }
-}
+// pub fn draw_circle2d(obj: &mut Obj3D) {
+//     obj.points[0].clear();
+//     obj.points[1].clear();
+//     //let c = c.trans(0.0, 0.0); //origin
+//     let mut t: f64 = 0.0;
+//     let r = obj.param.get("r").unwrap();
+//     //let transform = c.transform.trans(0.0, 0.0).rot_rad(0.0).trans(0.0, 0.0);
+//     for i in 0..obj.res + 1 {
+//         t += 2.0 * PI / (obj.res as f64);
+//         obj.points[0].push(obj.pos[0] + r * t.cos());
+//         obj.points[1].push(obj.pos[1] + r * t.sin());
+//     }
+// }
 
 pub fn draw_circle3d(obj: &mut Obj3D) {
     let u = 0.0;
@@ -131,81 +131,81 @@ pub fn draw_rect(obj: &mut Obj3D) {
 // x=u(2−v)−1
 // y=v
 // 0≤u≤1, 0≤v≤1
-pub fn draw_trap(obj: &mut Obj3D) {
-    let z = 0.0;
-    obj.points[0].clear();
-    obj.points[1].clear();
-    let pos_vect = arr1(&[obj.pos[0], obj.pos[1], 0.0]);
-    let rot_alpha = arr2(&[
-        [1.0, 0.0, 0.0],
-        [0.0, obj.alph.cos(), -obj.alph.sin()],
-        [0.0, obj.alph.sin(), obj.alph.cos()],
-    ]);
-    let rot_beta = arr2(&[
-        [obj.beta.cos(), 0.0, obj.beta.sin()],
-        [0.0, 1.0, 0.0],
-        [-obj.beta.sin(), 0.0, obj.beta.cos()],
-    ]);
+// pub fn draw_trap(obj: &mut Obj3D) {
+//     let z = 0.0;
+//     obj.points[0].clear();
+//     obj.points[1].clear();
+//     let pos_vect = arr1(&[obj.pos[0], obj.pos[1], 0.0]);
+//     let rot_alpha = arr2(&[
+//         [1.0, 0.0, 0.0],
+//         [0.0, obj.alph.cos(), -obj.alph.sin()],
+//         [0.0, obj.alph.sin(), obj.alph.cos()],
+//     ]);
+//     let rot_beta = arr2(&[
+//         [obj.beta.cos(), 0.0, obj.beta.sin()],
+//         [0.0, 1.0, 0.0],
+//         [-obj.beta.sin(), 0.0, obj.beta.cos()],
+//     ]);
 
-    let rot_gamm = arr2(&[
-        [obj.alph.cos(), -obj.alph.sin(), 0.0],
-        [obj.alph.sin(), obj.alph.cos(), 0.0],
-        [0.0, 0.0, 1.0],
-    ]);
-    let rot_mat = rot_alpha.dot(&rot_beta).dot(&rot_gamm);
-    let mut t: f64 = 0.0;
-    let w = *obj.param.get("w").unwrap();
-    let h = *obj.param.get("h").unwrap();
-    let a = *obj.param.get("a").unwrap();
-    // x=
-    // y=v
+//     let rot_gamm = arr2(&[
+//         [obj.alph.cos(), -obj.alph.sin(), 0.0],
+//         [obj.alph.sin(), obj.alph.cos(), 0.0],
+//         [0.0, 0.0, 1.0],
+//     ]);
+//     let rot_mat = rot_alpha.dot(&rot_beta).dot(&rot_gamm);
+//     let mut t: f64 = 0.0;
+//     let w = *obj.param.get("w").unwrap();
+//     let h = *obj.param.get("h").unwrap();
+//     let a = *obj.param.get("a").unwrap();
+//     // x=
+//     // y=v
 
-    for _i in 0..obj.res {
-        t += 2.0 * PI / (obj.res as f64+1.0);
-        let u = 0.5 * w * signum(t.cos()) ; // 0 - w
-        let v = 0.5 * h * signum(t.sin()); // 0 - h
-        let x = u * (h - v) - w;
-        let y = v;
-        let xyz = arr1(&[x * a.cos() - y * a.sin(), y * a.cos() + x * a.sin(), z]);
-        let new_vect = rot_mat.dot(&xyz) + &pos_vect;
-        obj.points[0].push(new_vect[0]);
-        obj.points[1].push(new_vect[1]);
-    }
-    //println!("{:?}",obj.points);
-}
+//     for _i in 0..obj.res {
+//         t += 2.0 * PI / (obj.res as f64+1.0);
+//         let u = 0.5 * w * signum(t.cos()) ; // 0 - w
+//         let v = 0.5 * h * signum(t.sin()); // 0 - h
+//         let x = u * (h - v) - w;
+//         let y = v;
+//         let xyz = arr1(&[x * a.cos() - y * a.sin(), y * a.cos() + x * a.sin(), z]);
+//         let new_vect = rot_mat.dot(&xyz) + &pos_vect;
+//         obj.points[0].push(new_vect[0]);
+//         obj.points[1].push(new_vect[1]);
+//     }
+//     //println!("{:?}",obj.points);
+// }
 
-pub fn draw_3dmesh(data: &mut [Vec<f64>; 3], obj: &mut Obj3D) {
-    obj.points[0].clear();
-    obj.points[1].clear();
+// pub fn draw_3dmesh(data: &mut [Vec<f64>; 3], obj: &mut Obj3D) {
+//     obj.points[0].clear();
+//     obj.points[1].clear();
 
-    let pos_vect = arr1(&[obj.pos[0], obj.pos[1], 0.0]);
-    let rot_alpha = arr2(&[
-        [1.0, 0.0, 0.0],
-        [0.0, obj.alph.cos(), -obj.alph.sin()],
-        [0.0, obj.alph.sin(), obj.alph.cos()],
-    ]);
-    let rot_beta = arr2(&[
-        [obj.beta.cos(), 0.0, obj.beta.sin()],
-        [0.0, 1.0, 0.0],
-        [-obj.beta.sin(), 0.0, obj.beta.cos()],
-    ]);
+//     let pos_vect = arr1(&[obj.pos[0], obj.pos[1], 0.0]);
+//     let rot_alpha = arr2(&[
+//         [1.0, 0.0, 0.0],
+//         [0.0, obj.alph.cos(), -obj.alph.sin()],
+//         [0.0, obj.alph.sin(), obj.alph.cos()],
+//     ]);
+//     let rot_beta = arr2(&[
+//         [obj.beta.cos(), 0.0, obj.beta.sin()],
+//         [0.0, 1.0, 0.0],
+//         [-obj.beta.sin(), 0.0, obj.beta.cos()],
+//     ]);
 
-    let rot_gamm = arr2(&[
-        [obj.alph.cos(), -obj.alph.sin(), 0.0],
-        [obj.alph.sin(), obj.alph.cos(), 0.0],
-        [0.0, 0.0, 1.0],
-    ]);
-    let rot_mat = rot_alpha.dot(&rot_beta).dot(&rot_gamm);
+//     let rot_gamm = arr2(&[
+//         [obj.alph.cos(), -obj.alph.sin(), 0.0],
+//         [obj.alph.sin(), obj.alph.cos(), 0.0],
+//         [0.0, 0.0, 1.0],
+//     ]);
+//     let rot_mat = rot_alpha.dot(&rot_beta).dot(&rot_gamm);
 
-    //let mut new_vect;
-    //let transform = c.transform.trans(0.0, 0.0).rot_rad(0.0).trans(0.0, 0.0);
-    for i in 0..data[0].len() {
-        let xyz = arr1(&[data[0][i], data[1][i], data[2][i]]);
-        let new_vect = rot_mat.dot(&xyz) + &pos_vect;
-        obj.points[0].push(new_vect[0]);
-        obj.points[1].push(new_vect[1]);
-    }
-}
+//     //let mut new_vect;
+//     //let transform = c.transform.trans(0.0, 0.0).rot_rad(0.0).trans(0.0, 0.0);
+//     for i in 0..data[0].len() {
+//         let xyz = arr1(&[data[0][i], data[1][i], data[2][i]]);
+//         let new_vect = rot_mat.dot(&xyz) + &pos_vect;
+//         obj.points[0].push(new_vect[0]);
+//         obj.points[1].push(new_vect[1]);
+//     }
+// }
 
 fn point_dist(x1: f64, x2: f64, y1: f64, y2: f64) -> f64 {
     (f64::powf(x2 - x1, 2.0) + f64::powf(y2 - y1, 2.0)).sqrt()

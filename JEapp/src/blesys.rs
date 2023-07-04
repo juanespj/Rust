@@ -1,23 +1,20 @@
-use btleplug::api::{
-    Central, CharPropFlags, Manager as _, Peripheral, ScanFilter, WriteType::WithoutResponse,
-};
+use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter}; //CharPropFlags,WriteType::WithoutResponse,
 use btleplug::platform::{Adapter, Manager};
-use color_eyre::eyre::Result;
-use futures::executor::block_on;
+// use color_eyre::eyre::Result;
+// use futures::executor::block_on;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc};
+// use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc; //, Arc
 use std::{
-    error::Error,
-    str, thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+    str,
+    time::{Duration},
+}; // error::Error, thread, time::{ SystemTime, UNIX_EPOCH},
 use tokio::time;
 use uuid::Uuid;
 
 /// Only devices whose name contains this string will be tried.
-const PERIPHERAL_NAME_MATCH_FILTER: &str = "Feeder";
+// const PERIPHERAL_NAME_MATCH_FILTER: &str = "Feeder";
 /// UUID of the characteristic for which we should subscribe to notifications.
 const TRIG_CHAR_UUID: Uuid = Uuid::from_u128(0x357a1221_2ae4_4b08_8ea1_06fa478234cb);
 const TIMESTAMP_CHAR_UUID: Uuid = Uuid::from_u128(0x65F52242_2AF2_473B_A939_57E5753C92B5);
@@ -81,10 +78,9 @@ impl BLESys {
 
         let mut newmsg: u8 = 0;
         let mut loop_lock: u8 = 0;
-        let mut prev_state=sys.state.clone();
+        // let mut prev_state = sys.state.clone();
         while loop_lock == 0 {
-           
-            if prev_state!= sys.state{
+            // if prev_state != sys.state {
                 match sys.state {
                     BLEState::CREATED => {
                         sys.state = BLEState::SCAN;
@@ -106,16 +102,18 @@ impl BLESys {
                             newmsg = 1;
                         }
                     }
-                    BLEState::IDLE => { match rx_a.try_recv()  {
-                        Ok(msg) => {
-                            println!("fromAPP: {:?}", msg.state);
-                            sys.state=msg.state;
+                    BLEState::IDLE => {
+                        match rx_a.try_recv() {
+                            Ok(msg) => {
+                                println!("fromAPP: {:?}", msg.state);
+                                sys.state = msg.state;
+                            }
+                            Err(_) => { /* handle sender disconnected */ }
                         }
-                        Err(_) => { /* handle sender disconnected */ }
-                    }}
+                    }
                     BLEState::KILL => loop_lock = 1,
                     _ => {}
-                }
+                // }
             }
             // loop_lock = 1;
             if newmsg == 1 {
@@ -124,6 +122,7 @@ impl BLESys {
                 }
                 newmsg = 0;
             }
+           
         }
         println!("BLE STOP.");
         Ok(())
@@ -195,8 +194,7 @@ async fn find_per(sys: &mut BLESys) -> color_eyre::Result<()> {
                         }
                         if found == 0 {
                             println!("Checking characteristic {:?}", characteristic);
-                        }else{
-
+                        } else {
                         }
 
                         // Subscribe to notifications from the characteristic with the selected

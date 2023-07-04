@@ -1,6 +1,6 @@
-use egui::widgets::plot::{Legend, Line, Plot, PlotPoints, Polygon};
-//Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine,
-//  MarkerShape,  PlotImage, PlotPoint,  Points, Text, VLine,  LineStyle,};
+use egui::widgets::plot::{Legend, Line, Plot,  PlotPoint,Arrows,PlotPoints, Polygon,Text};
+// Bar, BarChart, BoxElem, BoxPlot, BoxSpread, Corner, HLine,
+//  MarkerShape,  PlotImage,  Points, Text, VLine,  LineStyle,};
 // use core::f64::consts::PI;
 use egui::*;
 pub mod data;
@@ -67,6 +67,10 @@ pub struct RenderApp {
     device_state: DeviceState,
     #[serde(skip)]
     anim_state: objects::ObjAnim,
+    plt: HashMap<String, Vec<f64>>,
+    pltobjstate: HashMap<String, HashMap<String, f64>>,
+    #[serde(skip)]
+    pltobjlist: Vec<objects::Obj3D>,
     draw: u8,
     #[serde(skip)]
     msgs: Mesagging,
@@ -99,9 +103,11 @@ impl Default for RenderApp {
             apps: AppsOpen {
                 ble: false,
                 rbb: false,
-                ltsim: true,
+                ltsim: false,
             },
-
+            plt: HashMap::new(),
+            pltobjlist: vec![],
+            pltobjstate: HashMap::new(),
             timer: Duration::new(0, 0),
             data_ready: 0,
             device_state: DeviceState::new(),
@@ -165,6 +171,9 @@ impl eframe::App for RenderApp {
             rbbctrl,
             ltsctrl,
             apps,
+            plt,
+            pltobjlist,
+            pltobjstate,
             device_state,
             msgs,
             picked_path,
@@ -202,79 +211,84 @@ impl eframe::App for RenderApp {
                         _frame.close();
                     }
                 });
-                ui.menu_button("CNC", |ui| {
-                    if ui.button("Open OGF…").clicked() {
-                        let filename = "./4014iso".to_string();
-                        data::process_ogf(filename);
+                // ui.menu_button("CNC", |ui| {
+                    // if ui.button("Open OGF…").clicked() {
+                    //     let filename = "./4014iso".to_string();
+                    //     data::process_ogf(filename);
 
-                        // if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        //     self.picked_path = Some(path.display().to_string());
-                        //    data::processdata(path.display().to_string())
-                    }
-                    if ui.button("Open RPF…").clicked() {
-                        let filename = "./probe.txt".to_string();
-                        let mut mesh = objects::Surf3D {
-                            pos: [0.0, 0.0, 0.0],
-                            param: HashMap::from([("r".to_string(), 2.0)]),
-                            alph: 0.5,
-                            beta: 0.5,
-                            gamm: 0.5,
-                            points_raw: [vec![], vec![], vec![]],
-                            points: vec![], //X Y points for render
-                            scale: 10.0,
-                            res: 100, //resolution
-                        };
-                        // let mut meshRAW: [Vec<f64>; 3] = [vec![], vec![], vec![]];
-                        data::process_raw_probe_file(filename, &mut mesh.points_raw);
-                        // println!("mesh{:?} ", mesh.points_raw);
-                        // objects::draw_3dmesh(&mut meshRAW, &mut mesh);
-                        objects::draw_3dmesh_surf(&mut mesh);
+                    //     // if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    //     //     self.picked_path = Some(path.display().to_string());
+                    //     //    data::processdata(path.display().to_string())
+                    // }
+                    // if ui.button("Open RPF…").clicked() {
+                    //     let filename = "./probe.txt".to_string();
+                    //     let mut mesh = objects::Surf3D {
+                    //         pos: [0.0, 0.0, 0.0],
+                    //         param: HashMap::from([("r".to_string(), 2.0)]),
+                    //         alph: 0.5,
+                    //         beta: 0.5,
+                    //         gamm: 0.5,
+                    //         points_raw: [vec![], vec![], vec![]],
+                    //         points: vec![], //X Y points for render
+                    //         scale: 10.0,
+                    //         res: 100, //resolution
+                    //     };
+                    //     // let mut meshRAW: [Vec<f64>; 3] = [vec![], vec![], vec![]];
+                    //     data::process_raw_probe_file(filename, &mut mesh.points_raw);
+                    //     // println!("mesh{:?} ", mesh.points_raw);
+                    //     // objects::draw_3dmesh(&mut meshRAW, &mut mesh);
+                    //     objects::draw_3dmesh_surf(&mut mesh);
 
-                        self.surflist.push(mesh);
+                    //     self.surflist.push(mesh);
 
-                        // if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        //     self.picked_path = Some(path.display().to_string());
-                        //    data::processdata(path.display().to_string())
-                    }
-                    if ui.button("Open Satfile…").clicked() {
-                        //  let filename ="./11.17.17Device 3.xlsx".to_string();
-                        // data::processdata(filename, &mut self.dataset);
-                        if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            self.picked_path = Some(path.display().to_string());
-                            data::processdata(path.display().to_string(), &mut self.dataset)
-                        }
-                    }
-                    if ui.button("draw").clicked() {
-                        let mut circle1 = objects::Obj3D {
-                            tag: "circle".to_string(),
-                            pos: [0.0, 0.0, 0.0],
-                            param: HashMap::from([("r".to_string(), 1.0)]),
-                            alph: 0.0,
-                            beta: 0.0,
-                            gamm: 0.0,
-                            points: [vec![], vec![]], //X Y points for render
-                            scale: 1.0,
-                            res: 100, //resolution
-                            color: [250, 100, 50],
-                        };
-                        let mut trap = objects::Obj3D {
-                            tag: "trap".to_string(),
-                            pos: [0.0, 0.0, 0.0],
-                            param: HashMap::from([("h".to_string(), 3.0),("w".to_string(), 5.0),("a".to_string(), 0.0),("s".to_string(), 0.0)]),
-                            alph: 0.0,
-                            beta: 0.0,
-                            gamm: 0.0,
-                            points: [vec![], vec![]], //X Y points for render
-                            scale: 1.0,
-                            res: 100, //resolution
-                            color: [250, 100, 50],
-                        };
-                        objects::draw_trap(&mut trap);
-                        // objects::draw_circle3d(&mut circle1);
-                        self.objectlist.push(circle1);
-                        self.draw = 1;
-                    }
-                });
+                    //     // if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    //     //     self.picked_path = Some(path.display().to_string());
+                    //     //    data::processdata(path.display().to_string())
+                    // }
+                    // if ui.button("Open Satfile…").clicked() {
+                    //     //  let filename ="./11.17.17Device 3.xlsx".to_string();
+                    //     // data::processdata(filename, &mut self.dataset);
+                    //     if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    //         self.picked_path = Some(path.display().to_string());
+                    //         data::processdata(path.display().to_string(), &mut self.dataset)
+                    //     }
+                    // }
+                    // if ui.button("draw").clicked() {
+                    //     let circle1 = objects::Obj3D {
+                    //         tag: "circle".to_string(),
+                    //         pos: [0.0, 0.0, 0.0],
+                    //         param: HashMap::from([("r".to_string(), 1.0)]),
+                    //         alph: 0.0,
+                    //         beta: 0.0,
+                    //         gamm: 0.0,
+                    //         points: [vec![], vec![]], //X Y points for render
+                    //         scale: 1.0,
+                    //         res: 100, //resolution
+                    //         color: [250, 100, 50],
+                    //     };
+                    //     let mut trap = objects::Obj3D {
+                    //         tag: "trap".to_string(),
+                    //         pos: [0.0, 0.0, 0.0],
+                    //         param: HashMap::from([
+                    //             ("h".to_string(), 3.0),
+                    //             ("w".to_string(), 5.0),
+                    //             ("a".to_string(), 0.0),
+                    //             ("s".to_string(), 0.0),
+                    //         ]),
+                    //         alph: 0.0,
+                    //         beta: 0.0,
+                    //         gamm: 0.0,
+                    //         points: [vec![], vec![]], //X Y points for render
+                    //         scale: 1.0,
+                    //         res: 100, //resolution
+                    //         color: [250, 100, 50],
+                    //     };
+                    //     objects::draw_trap(&mut trap);
+                    //     // objects::draw_circle3d(&mut circle1);
+                    //     self.objectlist.push(circle1);
+                    //     self.draw = 1;
+                    // }
+                // });
                 if ui.button("List COM…").clicked() {
                     if self.sersys.state == SerState::CREATED {
                         let (tx_ser, rx_ser): (Sender<SerSys>, Receiver<SerSys>) =
@@ -347,6 +361,17 @@ impl eframe::App for RenderApp {
                     self.cmd = CMDapp::Sermsg;
                 }
             }
+            if ui.button("Monitor").clicked() {
+                println!("{}", self.port_sel);
+
+                if self.port_sel != "-" {
+                    self.sersys
+                        .status
+                        .insert("sel".to_string(), vec![self.port_sel.clone()]);
+                    self.sersys.state = SerState::MONITOR;
+                    self.cmd = CMDapp::Sermsg;
+                }
+            }
             if ui.button("Send").clicked() {
                 if self.port_sel != "-" {
                     self.sersys
@@ -410,6 +435,49 @@ impl eframe::App for RenderApp {
                     let msg = blesys::ble_gui(ui, &mut self.blectrl);
                     if msg == 1 {
                         self.cmd = CMDapp::BLEmsg;
+                    }
+                    if self.plt.keys().len() > 0 {
+                        let plot = Plot::new("preview")
+                            .include_x(0.0)
+                            .include_y(0.0)
+                            .width(600.0)
+                            .height(200.0)
+                            .view_aspect(1.0)
+                            .data_aspect(1.0)
+                            .allow_zoom(true)
+                            .allow_drag(true)
+                            .show_axes([false; 2])
+                            .show_background(false)
+                            .legend(Legend::default())
+                            .center_y_axis(true);
+
+                        plot.show(ui, |plot_ui| {
+                            if self.plt.keys().len() > 0 {
+                                for obj in self.pltobjlist.iter() {
+                                    let x = &obj.points[0];
+                                    let y = &obj.points[1];
+                                    let plt: PlotPoints =
+                                        (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
+
+                                    let planned_line = Line::new(plt).color(Color32::from_rgb(
+                                        obj.color[0],
+                                        obj.color[1],
+                                        obj.color[2],
+                                    ));
+                                    plot_ui.line(planned_line);
+                                }
+                            }
+                            let rbb = self.pltobjstate.get("rbb").unwrap().clone();
+                            let beam_ang = rbb.get("a").unwrap();
+                            plot_ui.arrows(Arrows::new(
+                                PlotPoints::from([2.0 * beam_ang.sin(), -2.0 * beam_ang.cos()]),
+                                PlotPoints::from([0.2 * beam_ang.sin(), -0.2 * beam_ang.cos()]),
+                            ));
+
+                            let angle = format!("angle: {:.2}", rbb.get("a").unwrap());
+                            plot_ui.text(Text::new(PlotPoint::new(10.0, 4.0), angle));
+                            //.name("Text")
+                        });
                     }
                 });
 
@@ -548,7 +616,16 @@ impl eframe::App for RenderApp {
         }
         match self.msgs.ser_ch.1.try_recv() {
             Ok(data) => {
-                println!("fromSer: {:?}", data.status);
+                if self.sersys.status.contains_key("data") {
+                    println!("fromSer: {:?}", self.sersys.status.get("data").unwrap());
+                }
+                if self.sersys.status.contains_key("start") {
+                    println!("fromSer: {:?}", data.status);
+                }
+                if self.sersys.status.contains_key("end") {
+                    println!("fromSer: {:?}", data.status);
+                    self.sersys.status.remove("end");
+                }
                 self.sersys = data.clone();
                 if self.sersys.status.contains_key("list") {
                     self.portlist = self.sersys.status.get("list").unwrap().to_vec()
@@ -608,12 +685,4 @@ impl eframe::App for RenderApp {
     }
 }
 
-pub fn rbb_gui(ui: &mut Ui) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("The triangle ");
-        ui.hyperlink_to("three-d", "https://github.com/asny/three-d");
-        ui.label(".");
-        ui.end_row();
-    });
-}
+

@@ -75,10 +75,10 @@ pub fn processdata(name: String, ds: &mut RawData) {
 }
 
 use std::fs;
-pub fn process_ogf(name: String) {
-    let contents = fs::read_to_string(name).expect("Should have been able to read the file");
-    let mut header: Vec<String> = vec![];
-    let mut value: Vec<String> = vec![];
+pub fn process_ogf() {//name: String
+    // let contents = fs::read_to_string(name).expect("Should have been able to read the file");
+    // let header: Vec<String> = vec![];
+    // let value: Vec<String> = vec![];
    // println!("{:?}", contents);
     // if let Some(Ok(r)) = excel.worksheet_range("Sheet1") {
 
