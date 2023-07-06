@@ -3,7 +3,7 @@ pub mod blesys;
 pub mod sersys;
 pub mod rbbsim;
 pub mod ltspicesim;
-
+pub mod datalogger;
 mod ltspice;
 pub use ltspice::SteppedSimulation;
 

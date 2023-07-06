@@ -1,16 +1,16 @@
 use futures::executor::block_on;
 use serde_derive::{Deserialize, Serialize};
+use serialport::{available_ports, DataBits, SerialPortType, StopBits};
 use std::collections::HashMap;
+use std::io::{self, Write};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc};
+use std::time::Instant;
 use std::{
     error::Error,
     str,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-
-use serialport::{available_ports, DataBits, SerialPortType, StopBits};
-use std::io::{self, Write};
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SerState {
@@ -58,6 +58,7 @@ impl SerSys {
 
         let mut newmsg: u8 = 0;
         let mut loop_lock: u8 = 0;
+        let mut now = Instant::now();
         while loop_lock == 0 {
             match rx_a.try_recv() {
                 //when message from app is received
@@ -110,8 +111,8 @@ impl SerSys {
                     self::readserial(&mut sys);
 
                     if sys.status.contains_key("read") {
-                        println!("read:{:?}", sys.status.get("read").unwrap());
-                        let msg = sys.status.get("read").unwrap()[0].clone();
+                        // println!("read:{:?}", sys.status.get("read").unwrap());
+                        let tmpmsg = sys.status.get("read").unwrap()[0].clone();
                         // match &msg {
                         //     x if x.contains(&"START") => {
                         //         sys.status
@@ -138,12 +139,8 @@ impl SerSys {
                         //     }
                         //     _ => {}
                         // }
-                        if msg.contains("START") {}
-                        if msg.contains("STOP") {
-                            sys.status
-                                .entry("end".to_string())
-                                .or_insert_with(Vec::new)
-                                .push(msg.clone());
+                        if tmpmsg.contains("START") {}
+                        if tmpmsg.contains("STOP") {
                             sys.state = SerState::IDLE;
                         }
                         //sys.status.remove("read");
@@ -152,10 +149,14 @@ impl SerSys {
                 }
                 _ => {}
             }
-            if newmsg == 1 {
+            if newmsg == 1 && now.elapsed().as_millis() > 100 {
                 if let Err(_) = tx_ser.send(sys.clone()) {
                     println!("App not listening.")
                 }
+                if sys.status.contains_key("read") {
+                    sys.status.remove("read");
+                }
+                now = Instant::now();
                 newmsg = 0;
             }
         }
