@@ -1,4 +1,5 @@
 use crate::appmod::objects;
+use chrono::{NaiveDate, Timelike, Utc};
 use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
 use egui::Color32;
 use egui::*;
@@ -11,6 +12,7 @@ use std::{
     str,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use xlsxwriter::prelude::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LoggerState {
@@ -134,7 +136,9 @@ pub fn log_plot(logctrl: &mut LoggerCtrl) {
 
 pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
     ui.separator();
-    if ui.button("Save LOGS").clicked() {}
+    if ui.button("Save LOGS").clicked() {
+        write_xlsx(logctrl.clone());
+    }
     ui.separator();
     let data = logctrl.data.clone();
 
@@ -186,4 +190,77 @@ pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
             logctrl.anim_state.state = 0;
         }
     }
+}
+
+pub fn write_xlsx(sys: LoggerCtrl) -> bool {
+    let today = Utc::now().date_naive();
+    let time = Utc::now().time();
+    let filename = format!(
+        "{}_h{}m{}s{}_log.xlsx",
+        today,
+        time.hour(),
+        time.minute(),
+        time.second()
+    );
+    let mut success = false;
+    match Workbook::new(&filename) {
+        Ok(workbook) => match workbook.add_worksheet(None) {
+            Ok(mut sheet1) => {
+                let mut cur_row = 0;
+
+                let mut cur_col = 0;
+                for item in sys.data.keys() {    
+                    let mut ix = 0;                
+                    let _errchk = sheet1.write_string(
+                        cur_row,
+                        cur_col,
+                        &item,
+                        Some(&Format::new().set_font_color(FormatColor::Black)),
+                    );
+                    ix+=1;
+                    
+                    for item in sys.data.get(item).unwrap() {
+                        write_num_cell(&mut sheet1, cur_row + ix, cur_col, item.clone());
+                        ix += 1;
+                    }
+                    cur_col += 1;
+                }
+
+                success = true;
+                let _errchk = workbook.close();
+            }
+            Err(_) => {
+                println!("Error saving!");
+            }
+        },
+        Err(_) => {
+            println!("Error saving!")
+        }
+    }
+    success
+}
+
+fn write_str_cell(sheet: &mut Worksheet<'_>, row: u32, col: u16, data: &String) {
+    let _errchk = sheet.write_string(
+        row,
+        col,
+        data,
+        Some(&Format::new().set_font_color(FormatColor::Black)),
+    );
+}
+fn write_num_cell(sheet: &mut Worksheet<'_>, row: u32, col: u16, data: f64) {
+    let _errchk = sheet.write_number(
+        row,
+        col,
+        data,
+        Some(&Format::new().set_font_color(FormatColor::Black)),
+    );
+}
+fn write_bool_cell(sheet: &mut Worksheet<'_>, row: u32, col: u16, data: bool) {
+    let _errchk = sheet.write_boolean(
+        row,
+        col,
+        data,
+        Some(&Format::new().set_font_color(FormatColor::Black)),
+    );
 }
