@@ -3,15 +3,19 @@
 	"tasks": [
 		{
 			"type": "cargo",
-			"command": "run RUST_BACKTRACE=1",
+			"command": "build",
+			"args": [
+				//"--example",
+			//	"jeapp"
+			],
 			"problemMatcher": [
 				"$rustc"
 			],
 			"group": {
-                "kind": "build",
-                "isDefault": true
-            },
-			"label": "cargo test with backtrace"
+				"kind": "build",
+				"isDefault": true
+			},
+			"label": "jeapp",		
 		}
 	]
 }

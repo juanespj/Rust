@@ -1,0 +1,13 @@
+[package]
+authors = ["Juanes"]
+name    = "kiss3d"
+version = "0.35.0"
+
+
+
+
+[dependencies]
+kiss3d = "0.35.0"
+nalgebra = "0.30"  
+# nalgebra 0.30 for kiss3d 0.35
+

@@ -74,58 +74,7 @@ pub fn processdata(name: String, ds: &mut RawData) {
     }
 }
 
-use std::fs;
-pub fn process_ogf() {//name: String
-    // let contents = fs::read_to_string(name).expect("Should have been able to read the file");
-    // let header: Vec<String> = vec![];
-    // let value: Vec<String> = vec![];
-   // println!("{:?}", contents);
-    // if let Some(Ok(r)) = excel.worksheet_range("Sheet1") {
 
-    //     for (i, row) in r.rows().enumerate() {
-
-    //             // println!("{:?}", dataf);
-    //         } else if i > 7 {
-    //             //let mut ix = 0;
-    //             let mut ix = 0;
-    //             for k in header.iter_mut() {
-    //                 let f: f32 = row[ix].to_string().parse().unwrap();
-
-    //                 ds.dataf.entry(k.to_string()).or_insert_with(Vec::new).push(f);
-
-    //                 ix += 1;
-    //             }
-    //         }
-    //     }
-
-    // }
-}
-
-pub fn process_raw_probe_file(filename: String, data: &mut [Vec<f64>; 3]) {
-    println!("{:?}", filename);
-
-    let contents = fs::read_to_string(filename).expect("Should have been able to read the file");
-    data[0].clear();
-    data[1].clear();
-    data[2].clear();
-    for line in contents.lines() {
-        let mut triplet: Vec<f64> = Vec::new();
-       
-            for var in line.split(",") {
-                let f: f64 = match var.parse() {
-                    Ok(v) => v,
-                    Err(_) => 0.0, // or whatever error handling
-                };
-                triplet.push(f);
-            }
-            data[0].push(triplet[0]);
-            data[1].push(triplet[1]);
-            data[2].push(triplet[2]);
-        
-    }
-    //print!("{:?}", data[2]);
-    // rendermesh(x, y, z);
-}
 
 // fn newg_word(in:Char,&word:char){
 

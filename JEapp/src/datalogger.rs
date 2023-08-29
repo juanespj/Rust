@@ -139,6 +139,14 @@ pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
     if ui.button("Save LOGS").clicked() {
         write_xlsx(logctrl.clone());
     }
+    // if ui.button("Open Satfile…").clicked() {
+    //     //  let filename ="./11.17.17Device 3.xlsx".to_string();
+    //     // data::processdata(filename, &mut self.dataset);
+    //     if let Some(path) = rfd::FileDialog::new().pick_file() {
+    //         cncctrl.picked_path = path.display().to_string();
+    //         processdata(path.display().to_string(), &mut cncctrl.dataset)
+    //     }
+    // }
     ui.separator();
     let data = logctrl.data.clone();
 
@@ -209,16 +217,16 @@ pub fn write_xlsx(sys: LoggerCtrl) -> bool {
                 let mut cur_row = 0;
 
                 let mut cur_col = 0;
-                for item in sys.data.keys() {    
-                    let mut ix = 0;                
+                for item in sys.data.keys() {
+                    let mut ix = 0;
                     let _errchk = sheet1.write_string(
                         cur_row,
                         cur_col,
                         &item,
                         Some(&Format::new().set_font_color(FormatColor::Black)),
                     );
-                    ix+=1;
-                    
+                    ix += 1;
+
                     for item in sys.data.get(item).unwrap() {
                         write_num_cell(&mut sheet1, cur_row + ix, cur_col, item.clone());
                         ix += 1;

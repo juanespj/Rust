@@ -1,20 +1,34 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "jeapp",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceRoot}/target/debug/jeapp.exe",
-            "args": [],
-          //  "environment": [],
-          //  "stopAtEntry": false,
-            "cwd": "${workspaceRoot}",            
-          //  "externalConsole": true
-        },
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
 
-    ]
+    {
+      "name": "(Windows) Launch",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceRoot}/target/debug/jeapp.exe",
+      "args": [
+     /*   "-namespace",
+        "default",
+        "-id",
+        "1234",
+        "-address",
+        "\\\\.\\pipe\\containerd-containerd",*/
+      ],
+      "environment": [
+        {
+          // "name": "TTRPC_ADDRESS",
+          // "value": "\\\\.\\pipe\\containerd-containerd.ttrpc"
+        }
+      ],
+      "stopAtEntry": false,
+      "preLaunchTask": "jeapp",
+      "cwd": "${workspaceRoot}",
+      //  "externalConsole": true
+    },
+    
+  ]
 }

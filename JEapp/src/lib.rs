@@ -4,6 +4,7 @@ pub mod sersys;
 pub mod rbbsim;
 pub mod ltspicesim;
 pub mod datalogger;
+pub mod cnc;
 mod ltspice;
 pub use ltspice::SteppedSimulation;
 

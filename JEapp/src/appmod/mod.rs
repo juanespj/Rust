@@ -7,7 +7,8 @@ pub mod data;
 pub mod objects;
 use crate::datalogger::{log_plot, LoggerCtrl, LoggerState};
 //pub use serial::SerialCtrl;
-use crate::blesys::{self, ble_gui, BLEState, BLESys};
+use crate::blesys::{self, BLEState, BLESys};
+use crate::cnc::{CNCCtrl, CNCState};
 use crate::ltspicesim::{SimCtrl, SimState};
 use crate::rbbsim::{RbbCtrl, RbbState};
 use crate::sersys::{SerState, SerSys};
@@ -16,7 +17,7 @@ use device_query::{DeviceQuery, DeviceState, Keycode};
 // use num::signum;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::iter::Iterator;
+// use std::iter::Iterator;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{
@@ -36,12 +37,13 @@ enum CMDapp {
     UpdPrev,
     Sermsg,
 }
-
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct AppsOpen {
     ble: bool,
     rbb: bool,
     logger: bool,
     ltsim: bool,
+    cnc: bool,
 }
 // if we add new fields, give them default values when deserializing old state
 // use macroquad::prelude::*;
@@ -54,7 +56,7 @@ pub struct RenderApp {
     #[serde(skip)]
     data_ready: u8,
     timer: Duration,
-    #[serde(skip)]
+    // #[serde(skip)]
     apps: AppsOpen,
     picked_path: String,
     #[serde(skip)]
@@ -82,6 +84,9 @@ pub struct RenderApp {
     #[serde(skip)]
     logger: LoggerCtrl,
     #[serde(skip)]
+    cnc: CNCCtrl,
+
+    #[serde(skip)]
     cmd: CMDapp,
     #[serde(skip)]
     objstate: HashMap<String, HashMap<String, f64>>,
@@ -106,6 +111,7 @@ impl Default for RenderApp {
                 rbb: false,
                 ltsim: false,
                 logger: true,
+                cnc: false,
             },
             timer: Duration::new(0, 0),
             data_ready: 0,
@@ -120,6 +126,7 @@ impl Default for RenderApp {
             blectrl: BLESys::default(),
             rbbctrl: RbbCtrl::default(),
             ltsctrl: SimCtrl::default(),
+            cnc: CNCCtrl::default(),
             logger: LoggerCtrl::default(),
             msgs: Mesagging {
                 ble_ch: mpsc::channel::<BLESys>(),
@@ -170,6 +177,7 @@ impl eframe::App for RenderApp {
             blectrl,
             rbbctrl,
             ltsctrl,
+            cnc,
             logger,
             apps,
 
@@ -209,86 +217,17 @@ impl eframe::App for RenderApp {
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     }
+                    if ui.button("LTSpice").clicked() {
+                        self.apps.ltsim = !self.apps.ltsim;
+                    }
+                    if ui.button("CNC").clicked() {
+                        self.apps.cnc = !self.apps.cnc;
+                    }
+                    if ui.button("RBB").clicked() {
+                        self.apps.rbb = !self.apps.cnc;
+                    }
                 });
-                /*
-                // ui.menu_button("CNC", |ui| {
-                    // if ui.button("Open OGF…").clicked() {
-                    //     let filename = "./4014iso".to_string();
-                    //     data::process_ogf(filename);
 
-                    //     // if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    //     //     self.picked_path = Some(path.display().to_string());
-                    //     //    data::processdata(path.display().to_string())
-                    // }
-                    // if ui.button("Open RPF…").clicked() {
-                    //     let filename = "./probe.txt".to_string();
-                    //     let mut mesh = objects::Surf3D {
-                    //         pos: [0.0, 0.0, 0.0],
-                    //         param: HashMap::from([("r".to_string(), 2.0)]),
-                    //         alph: 0.5,
-                    //         beta: 0.5,
-                    //         gamm: 0.5,
-                    //         points_raw: [vec![], vec![], vec![]],
-                    //         points: vec![], //X Y points for render
-                    //         scale: 10.0,
-                    //         res: 100, //resolution
-                    //     };
-                    //     // let mut meshRAW: [Vec<f64>; 3] = [vec![], vec![], vec![]];
-                    //     data::process_raw_probe_file(filename, &mut mesh.points_raw);
-                    //     // println!("mesh{:?} ", mesh.points_raw);
-                    //     // objects::draw_3dmesh(&mut meshRAW, &mut mesh);
-                    //     objects::draw_3dmesh_surf(&mut mesh);
-
-                    //     self.surflist.push(mesh);
-
-                    //     // if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    //     //     self.picked_path = Some(path.display().to_string());
-                    //     //    data::processdata(path.display().to_string())
-                    // }
-                    // if ui.button("Open Satfile…").clicked() {
-                    //     //  let filename ="./11.17.17Device 3.xlsx".to_string();
-                    //     // data::processdata(filename, &mut self.dataset);
-                    //     if let Some(path) = rfd::FileDialog::new().pick_file() {
-                    //         self.picked_path = Some(path.display().to_string());
-                    //         data::processdata(path.display().to_string(), &mut self.dataset)
-                    //     }
-                    // }
-                    // if ui.button("draw").clicked() {
-                    //     let circle1 = objects::Obj3D {
-                    //         tag: "circle".to_string(),
-                    //         pos: [0.0, 0.0, 0.0],
-                    //         param: HashMap::from([("r".to_string(), 1.0)]),
-                    //         alph: 0.0,
-                    //         beta: 0.0,
-                    //         gamm: 0.0,
-                    //         points: [vec![], vec![]], //X Y points for render
-                    //         scale: 1.0,
-                    //         res: 100, //resolution
-                    //         color: [250, 100, 50],
-                    //     };
-                    //     let mut trap = objects::Obj3D {
-                    //         tag: "trap".to_string(),
-                    //         pos: [0.0, 0.0, 0.0],
-                    //         param: HashMap::from([
-                    //             ("h".to_string(), 3.0),
-                    //             ("w".to_string(), 5.0),
-                    //             ("a".to_string(), 0.0),
-                    //             ("s".to_string(), 0.0),
-                    //         ]),
-                    //         alph: 0.0,
-                    //         beta: 0.0,
-                    //         gamm: 0.0,
-                    //         points: [vec![], vec![]], //X Y points for render
-                    //         scale: 1.0,
-                    //         res: 100, //resolution
-                    //         color: [250, 100, 50],
-                    //     };
-                    //     objects::draw_trap(&mut trap);
-                    //     // objects::draw_circle3d(&mut circle1);
-                    //     self.objectlist.push(circle1);
-                    //     self.draw = 1;
-                    // }
-                // });*/
                 if ui.button("List COM…").clicked() {
                     if self.sersys.state == SerState::CREATED {
                         let (tx_ser, rx_ser): (Sender<SerSys>, Receiver<SerSys>) =
@@ -306,7 +245,6 @@ impl eframe::App for RenderApp {
                         );
                         self.cmd = CMDapp::Sermsg;
                     }
-               
                 }
             });
         });
@@ -396,120 +334,76 @@ impl eframe::App for RenderApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            // egui::Window::new(" BLE")
-            //     .enabled(true)
-            //     .open(&mut self.apps.ble)
-            //     .vscroll(true)
-            //     .show(ctx, |ui| {
-            //         if ui.button("Start").clicked() {
-            //             if self.blectrl.state == BLEState::CREATED {
-            //                 let (tx_ble, rx_ble): (Sender<BLESys>, Receiver<BLESys>) =
-            //                     mpsc::channel::<BLESys>();
-            //                 let (tx_a, rx_a): (Sender<BLESys>, Receiver<BLESys>) =
-            //                     mpsc::channel::<BLESys>();
-            //                 self.msgs.ble_ch.0 = tx_a;
-            //                 self.msgs.ble_ch.1 = rx_ble;
-            //                 //self keeps tx_a and rx_w
-            //                 let builder = thread::Builder::new();
-            //                 self.threads.push(
-            //                     builder
-            //                         .spawn(move || BLESys::startserv(tx_ble, rx_a))
-            //                         .unwrap(),
-            //                 );
-            //                 self.cmd = CMDapp::BLEmsg;
-            //             }
-            //             println!("sync.")
-            //         }
+            if self.apps.ble {
+                egui::Window::new(" BLE")
+                    .enabled(true)
+                    .open(&mut self.apps.ble)
+                    .vscroll(true)
+                    .show(ctx, |ui| {
+                        if ui.button("Start").clicked() {
+                            if self.blectrl.state == BLEState::CREATED {
+                                let (tx_ble, rx_ble): (Sender<BLESys>, Receiver<BLESys>) =
+                                    mpsc::channel::<BLESys>();
+                                let (tx_a, rx_a): (Sender<BLESys>, Receiver<BLESys>) =
+                                    mpsc::channel::<BLESys>();
+                                self.msgs.ble_ch.0 = tx_a;
+                                self.msgs.ble_ch.1 = rx_ble;
+                                //self keeps tx_a and rx_w
+                                let builder = thread::Builder::new();
+                                self.threads.push(
+                                    builder
+                                        .spawn(move || BLESys::startserv(tx_ble, rx_a))
+                                        .unwrap(),
+                                );
+                                self.cmd = CMDapp::BLEmsg;
+                            }
+                            println!("sync.")
+                        }
 
-            //         let msg = blesys::ble_gui(ui, &mut self.blectrl);
-            //         if msg == 1 {
-            //             self.cmd = CMDapp::BLEmsg;
-            //         }
-
-            //     });
+                        let msg = blesys::ble_gui(ui, &mut self.blectrl);
+                        if msg == 1 {
+                            self.cmd = CMDapp::BLEmsg;
+                        }
+                    });
+            }
             egui::Window::new("🔧 LightGATE")
-                .auto_sized()
+                // .auto_sized()
+                
                 .anchor(Align2::LEFT_TOP, [2.0, 2.0])
                 .vscroll(true)
                 .open(&mut self.apps.logger)
                 .show(ctx, |ui| {
                     crate::datalogger::log_gui(ctx, ui, &mut self.logger);
                 });
-            // egui::Window::new("🔧 RBB")
-            //     .auto_sized()
-            //     .anchor(Align2::LEFT_TOP, [2.0, 2.0])
-            //     .vscroll(true)
-            //     .open(&mut self.apps.rbb)
-            //     .show(ctx, |ui| {
-            //         crate::rbbsim::rbb_gui(ctx, ui, &mut self.rbbctrl);
-            //     });
-            // egui::Window::new("🔧 LTSim")
-            //     .auto_sized()
-            //     .anchor(Align2::LEFT_TOP, [2.0, 2.0])
-            //     .vscroll(true)
-            //     .open(&mut self.apps.ltsim)
-            //     .show(ctx, |ui| {
-            //         crate::ltspicesim::lts_gui(ctx, ui, &mut self.ltsctrl);
-            //     });
-            ui.heading("Preview");
-            if self.objectlist.len() > 0 || self.surflist.len() > 0 {
-                let plot = Plot::new("preview")
-                    .include_x(0.0)
-                    .include_y(0.0)
-                    .width(600.0)
-                    .height(600.0)
-                    .view_aspect(1.0)
-                    .data_aspect(1.0)
-                    .allow_zoom(true)
-                    .allow_drag(true)
-                    .show_axes([true; 2])
-                    .show_background(false)
-                    .legend(Legend::default());
-
-                plot.show(ui, |plot_ui| {
-                    if self.objectlist.len() > 0 {
-                        for obj in self.objectlist.iter() {
-                            let x = &obj.points[0];
-                            let y = &obj.points[1];
-                            let plt: PlotPoints =
-                                (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
-
-                            let planned_line = Line::new(plt).color(Color32::from_rgb(
-                                obj.color[0],
-                                obj.color[1],
-                                obj.color[2],
-                            ));
-                            plot_ui.line(planned_line);
-                        }
-                    }
-                    if self.surflist.len() > 0 {
-                        let rot: [f64; 2] = [
-                            plot_ui.pointer_coordinate_drag_delta()[0] as f64,
-                            plot_ui.pointer_coordinate_drag_delta()[1] as f64,
-                        ];
-                        if rot[0] != 0.0 || rot[1] != 0.0 {
-                            let mut i = 0;
-                            while i < self.surflist.len() {
-                                self.surflist[i].alph = rot[0] * 0.5 + self.surflist[i].alph;
-                                self.surflist[i].beta = rot[1] * 0.5 + self.surflist[i].beta;
-                                objects::draw_3dmesh_surf(&mut self.surflist[i]);
-                                i += 1;
-                            }
-                        }
-                        for obj in self.surflist.iter() {
-                            for surf in obj.points.iter() {
-                                let x = &surf[0];
-                                let y = &surf[1];
-                                let plt: PlotPoints = (0..x.len()).map(|i| [x[i], y[i]]).collect();
-
-                                let planned_surf =
-                                    Polygon::new(plt).color(Color32::from_rgb(100, 200, 100));
-                                plot_ui.polygon(planned_surf);
-                            }
-                        }
-                    }
-                });
-                //self.data_ready = 0;
+            if self.apps.rbb {
+                egui::Window::new("🔧 RBB")
+                    .auto_sized()
+                    .anchor(Align2::LEFT_TOP, [2.0, 2.0])
+                    .vscroll(true)
+                    .open(&mut self.apps.rbb)
+                    .show(ctx, |ui| {
+                        crate::rbbsim::rbb_gui(ctx, ui, &mut self.rbbctrl);
+                    });
+            }
+            if self.apps.ltsim {
+                egui::Window::new("🔧 LTSim")
+                    .auto_sized()
+                    // .anchor(Align2::LEFT_TOP, [2.0, 2.0])
+                    .vscroll(true)
+                    .open(&mut self.apps.ltsim)
+                    .show(ctx, |ui| {
+                        crate::ltspicesim::lts_gui(ctx, ui, &mut self.ltsctrl);
+                    });
+            }
+            if self.apps.cnc {
+                egui::Window::new("🔧 CNC")
+                    .auto_sized()
+                    // .anchor(Align2::LEFT_TOP, [2.0, 2.0])
+                    .vscroll(true)
+                    .open(&mut self.apps.cnc)
+                    .show(ctx, |ui| {
+                        crate::cnc::main_gui(ctx, ui, &mut self.cnc);
+                    });
             }
         });
     }
