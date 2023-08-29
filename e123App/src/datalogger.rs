@@ -5,6 +5,7 @@ use egui::Color32;
 use egui::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::BufRead;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc};
 use std::{
@@ -44,6 +45,8 @@ pub struct LoggerCtrl {
     #[serde(skip)]
     pub data: HashMap<String, Vec<f64>>,
     #[serde(skip)]
+    pub raw: String,
+    #[serde(skip)]
     pub anim_state: objects::ObjAnim,
     // #[serde(skip)]
     // objstate: HashMap<String, HashMap<String, f64>>,
@@ -62,6 +65,7 @@ impl Default for LoggerCtrl {
                 step: 0,
                 state: 0,
             },
+            raw: "".to_string(),
             // objectlist: vec![],
             // objstate: HashMap::new(),
             data: HashMap::new(),
@@ -76,6 +80,80 @@ impl Default for LoggerCtrl {
 
 // use core::f64::consts::PI;
 // use num::signum;
+pub fn log_process(logctrl: &mut LoggerCtrl) {
+    if logctrl.raw.contains("STARTLOG") {
+        let (_, mut tmp) = logctrl.raw.split_once("STARTLOG").unwrap();
+
+        if tmp.contains("STOPLOG") {
+            (tmp, _) = tmp.split_once("STOPLOG").unwrap();
+
+            // println!("rawSTOP:{:?}", raw);
+        }
+        // let cnt = tmp.matches("\r\n").count();
+        let mut i = 0;
+        logctrl.data.clear();
+        println!("\r\nPROCESS:");
+        for mut row in tmp.split("\r\n") {
+            if row.len() > 0 {
+                let cnt = row.matches(',').count();
+                if cnt > 2 || row.chars().last().unwrap() != '<' {
+                    if row.contains('<') {
+                        (_, row) = row.split_once('<').unwrap();
+                    }
+                    if row.matches(',').count() > 2 {
+                        println!("err:{:?}", row);
+                        continue;
+                    }
+                }
+                let matched: Result<(String, u32, f32), _> = try_scan!(row =>"{},{},{}<");
+                match matched {
+                    Ok((var, time, val)) => {
+                        //    println!("{} {} {}",var, time,  val);
+
+                        if var == "PH" || var == "PB"  {//&& val <= 1500.0
+                            let tkey = format!("t{}", var);
+                            let mut tout = time;
+                            if logctrl.data.contains_key(&tkey) {
+                                let last = logctrl.data.get(&tkey).unwrap().len() - 1;
+                                let tlast = logctrl.data.get(&tkey).unwrap()[last].clone();                                
+                            if tout < (tlast * 1000.0) as u32 {
+                                let deltat= logctrl.data.get(&tkey).unwrap()[last].clone()-logctrl.data.get(&tkey).unwrap()[last-1].clone();
+                                tout = ((tlast + deltat )* 1000.0 ) as u32 ;
+                            }
+                            }
+
+                            logctrl
+                                .data
+                                .entry(tkey)
+                                .or_insert_with(Vec::new)
+                                .push(tout as f64 / 1000.0);
+                            logctrl
+                                .data
+                                .entry(format!("{}", var))
+                                .or_insert_with(Vec::new)
+                                .push(val as f64);
+                        } else {
+                            if row.len() > 0 {
+                                println!("--err:{}", row);
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        if row.len() > 0 {
+                            println!("--err:{}", row);
+                        }
+                    }
+                }
+            }
+            i += 1;
+            // assert_eq!(a + b, c);d
+        }
+        // println!("data:{:?}", data);
+    }
+    // if raw.contains("LG") {
+    //     lightgate = true;
+    // }
+}
 
 pub fn log_plot(logctrl: &mut LoggerCtrl) {
     // let dt = 0.1;
@@ -84,12 +162,12 @@ pub fn log_plot(logctrl: &mut LoggerCtrl) {
     let mut lightgate = false;
     // let x_sp = 3.0 * signum(((logctrl.anim_state.step as f64) * PI / 50.0).cos()); //square
     if logctrl.status.contains_key("read") {
-        let mut buff = "".to_string();
-        if logctrl.status.contains_key("buffer") {
-            buff = logctrl.status.get("buffer").unwrap()[0].clone();
-            println!("buffer:{:?}", buff);
-            logctrl.status.remove_entry("buffer");
-        }
+        // let mut buff = "".to_string();
+        // if logctrl.status.contains_key("buffer") {
+        //     buff = logctrl.status.get("buffer").unwrap()[0].clone();
+        //     println!("buffer:{:?}", buff);
+        //     logctrl.status.remove_entry("buffer");
+        // }
         //  buff +&
         let mut raw: String = logctrl.status.get("read").unwrap()[0].clone();
 
@@ -200,7 +278,8 @@ pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
     let nokeys = data.keys().len() / 2;
     let w_height = ui.available_height();
     let w_width = ui.available_width();
-
+    let color = [Color32::LIGHT_BLUE, Color32::LIGHT_GREEN];
+    let mut i = 0;
     for key in data.keys() {
         if key.chars().nth(0).unwrap() != 't' {
             let plot = Plot::new(format!("plt{}", key))
@@ -226,17 +305,13 @@ pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
                 let t = data.get(&format!("t{}", key)).unwrap();
                 let x = data.get(key).unwrap();
                 let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
-                let planned_line = Line::new(plt).color(Color32::from_rgb(255, 50, 50));
+                let planned_line = Line::new(plt).color(color[i]);
                 plot_ui.line(planned_line.name(key));
                 // }
             });
-
+            i += 1;
             ui.separator();
         }
-    }
-
-    if logctrl.state == LoggerState::MONTORING {
-        ctx.request_repaint_after(std::time::Duration::from_millis(500));
     }
 }
 

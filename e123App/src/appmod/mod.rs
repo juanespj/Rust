@@ -5,7 +5,7 @@
 use egui::*;
 pub mod data;
 pub mod objects;
-use crate::datalogger::{log_plot, LoggerCtrl}; //, LoggerState
+use crate::datalogger::{log_plot, log_process, LoggerCtrl}; //, LoggerState
 const VERSION: &str = "LightGate v0.01";
 use crate::sersys::{self, listports, SerState, SerSys};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -53,9 +53,7 @@ pub struct RenderApp {
     #[serde(skip)]
     sersys: SerSys,
     #[serde(skip)]
-    datain: Arc<Mutex<String>>,
-    #[serde(skip)]
-    ser_state: Arc<Mutex<u8>>,
+    datain: Arc<RwLock<String>>,
     #[serde(skip)]
     portlist: Vec<String>,
     #[serde(skip)]
@@ -94,9 +92,7 @@ impl Default for RenderApp {
             apps: AppsOpen { logger: true },
             timer: Duration::new(0, 0),
             data_ready: 0,
-            datain: Arc::new(Mutex::new("".to_string())),
-            ser_state: Arc::new(Mutex::new(0)),
-            
+            datain: Arc::new(RwLock::new("".to_string())),
             device_state: DeviceState::new(),
             sersys: SerSys::default(),
             port_sel: "-".to_string(),
@@ -154,7 +150,6 @@ impl eframe::App for RenderApp {
             sersys: _,
             logger: _,
             apps: _,
-            ser_state: _,
             device_state: _,
             msgs: _,
             picked_path: _,
@@ -199,20 +194,20 @@ impl eframe::App for RenderApp {
                     if self.sersys.portlist.len() == 1 {
                         self.port_sel = self.sersys.portlist[0].num.clone();
                     }
-                    let (tx_ser, rx_ser): (Sender<SerSys>, Receiver<SerSys>) =
-                        mpsc::channel::<SerSys>();
-                    let (tx_a, rx_a): (Sender<SerSys>, Receiver<SerSys>) =
-                        mpsc::channel::<SerSys>();
-                    self.msgs.ser_ch.0 = tx_a;
-                    self.msgs.ser_ch.1 = rx_ser;
-                    //self keeps tx_a and rx_w
-                    let builder = thread::Builder::new();
-                    self.threads.push(
-                        builder
-                            .spawn(move || SerSys::startserv(tx_ser, rx_a))
-                            .unwrap(),
-                    );
-                    self.cmd = CMDapp::Sermsg;
+                    // let (tx_ser, rx_ser): (Sender<SerSys>, Receiver<SerSys>) =
+                    //     mpsc::channel::<SerSys>();
+                    // let (tx_a, rx_a): (Sender<SerSys>, Receiver<SerSys>) =
+                    //     mpsc::channel::<SerSys>();
+                    // self.msgs.ser_ch.0 = tx_a;
+                    // self.msgs.ser_ch.1 = rx_ser;
+                    // //self keeps tx_a and rx_w
+                    // let builder = thread::Builder::new();
+                    // self.threads.push(
+                    //     builder
+                    //         .spawn(move || SerSys::startserv(tx_ser, rx_a))
+                    //         .unwrap(),
+                    // );
+                    // self.cmd = CMDapp::Sermsg;
                     self.sersys.state = SerState::IDLE
                 }
                 // }
@@ -259,14 +254,47 @@ impl eframe::App for RenderApp {
                     }
                 }
                 if ui.button("Monitor").clicked() {
+                    let (tx_ser, rx_ser): (Sender<SerSys>, Receiver<SerSys>) =
+                        mpsc::channel::<SerSys>();
+                    let (tx_a, rx_a): (Sender<SerSys>, Receiver<SerSys>) =
+                        mpsc::channel::<SerSys>();
+                    self.msgs.ser_ch.0 = tx_a;
+                    self.msgs.ser_ch.1 = rx_ser;
                     println!("{}", self.port_sel);
 
+                    self.sersys
+                        .status
+                        .insert("sel".to_string(), vec![self.port_sel.to_string()]);
+
+                    self.sersys
+                        .status
+                        .insert("write".to_string(), vec!["r".to_string()]);
+                    sersys::sendserial(&mut self.sersys);
+                    let datain_c = Arc::clone(&self.datain);
+                    let builder = thread::Builder::new();
+                    self.threads.push(
+                        builder
+                            .spawn(move || sersys::arcreadserial(datain_c, tx_ser, rx_a))
+                            .unwrap(),
+                    );
+                    self.sersys
+                        .status
+                        .insert("START".to_string(), vec!["".to_string()]);
+                    //self keeps tx_a and rx_w
+                    // let builder = thread::Builder::new();
+                    // self.threads.push(
+                    //     builder
+                    //         .spawn(move || SerSys::startserv(tx_ser, rx_a))
+                    //         .unwrap(),
+                    // );
+
+                    // sersys::arcreadserial(&self.sersys, self.datain.clone(), self.ser_state);
                     // if self.port_sel != "-" {
                     //     self.sersys
                     //         .status
                     //         .insert("sel".to_string(), vec![self.port_sel.clone()]);
                     //     self.sersys.state = SerState::MONITOR;
-                    //     self.cmd = CMDapp::Sermsg;
+                    self.cmd = CMDapp::Sermsg;
                     // }
                     self.sersys.state = SerState::MONITOR;
                 }
@@ -317,7 +345,12 @@ impl eframe::App for RenderApp {
             //     .show(ctx, |ui| {
             // crate::datalogger::log_gui(ctx, ui, &mut self.logger);
             // });
+            crate::datalogger::log_gui(ctx, ui, &mut self.logger);
+
         });
+        if  self.sersys.state==SerState::MONITOR {
+            ctx.request_repaint();
+        }
     }
 
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {
@@ -380,37 +413,60 @@ impl eframe::App for RenderApp {
             }
         }
         if self.sersys.state == SerState::MONITOR {
-            sersys::arcreadserial(&self.sersys, self.datain.clone(),self.ser_state);
-            if let Ok(mut data) = self.datain.try_lock() {
-                // Step 2: check that data is not yet assigned.
-                self.logger
-                    .status
-                    .entry("read".to_string())
-                    .and_modify(|value| {
-                        *value =
-                            vec![value[0].clone() + &self.sersys.status.get("read").unwrap()[0]]
-                    })
-                    .or_insert(vec![self.sersys.status.get("read").unwrap()[0].clone()]);
+           
+            // sersys::arcreadserial(&self.sersys, self.datain.clone(), self.ser_state);
+            // if let Ok(mut data) = self.datain.try_lock() {
+            //     // Step 2: check that data is not yet assigned.
+            //     self.logger
+            //         .status
+            //         .entry("read".to_string())
+            //         .and_modify(|value| {
+            //             *value =
+            //                 vec![value[0].clone() + &self.sersys.status.get("read").unwrap()[0]]
+            //         })
+            //         .or_insert(vec![self.sersys.status.get("read").unwrap()[0].clone()]);
 
-                log_plot(&mut self.logger);
-            }
+            // log gui(&mut self.logger);
         }
+        // }
         match self.msgs.ser_ch.1.try_recv() {
-            Ok(data) => {
-                self.sersys = data.clone();
-                if self.sersys.status.contains_key("read") {
+            Ok(msg) => {
+                // self.sersys = data.clone();
+                // if self.sersys.status.contains_key("read") {
+                //   println!("fromSer: {:?}", self.sersys.status.get("read").unwrap());
+
+                // self.logger
+                //     .status
+                //     .entry("read".to_string())
+                //     .and_modify(|value| {
+                //         *value =
+                //             vec![value[0].clone() + &self.sersys.status.get("read").unwrap()[0]]
+                //     })
+                //     .or_insert(vec![self.sersys.status.get("read").unwrap()[0].clone()]);
+
+                // log_plot(&mut self.logger);
+                // }
+                if msg.status.contains_key("dataav") {
                     //   println!("fromSer: {:?}", self.sersys.status.get("read").unwrap());
-
-                    // self.logger
-                    //     .status
-                    //     .entry("read".to_string())
-                    //     .and_modify(|value| {
-                    //         *value =
-                    //             vec![value[0].clone() + &self.sersys.status.get("read").unwrap()[0]]
-                    //     })
-                    //     .or_insert(vec![self.sersys.status.get("read").unwrap()[0].clone()]);
-
-                    // log_plot(&mut self.logger);
+                    // println!("\nfromSer: {:?}", r2);
+                    // println!("\nfromSer: ");
+                    let r2 = self.datain.read().unwrap();
+                    self.logger.raw = (*r2).to_string();
+                    if self.logger.raw.len() > 0 {
+                        log_process(&mut self.logger);
+                    }
+                    self.sersys.state = SerState::MONITOR;
+                    self.sersys
+                        .status
+                        .insert("ack".to_string(), vec!["".to_string()]);
+                    self.cmd = CMDapp::Sermsg;
+                }
+                if msg.status.contains_key("START") {
+                    println!("start");
+                }
+                if msg.status.contains_key("STOP") {
+                    self.sersys.state = SerState::IDLE;
+                    println!("end");
                 }
                 if self.sersys.status.contains_key("start") {
                     println!("start");
@@ -429,7 +485,8 @@ impl eframe::App for RenderApp {
                 if let Err(_) = self.msgs.ser_ch.0.send(self.sersys.clone()) {
                     println!("Ser has stopped listening.")
                 }
-                thread::sleep(Duration::from_millis(200));
+                self.sersys.status.clear();
+                //  thread::sleep(Duration::from_millis(200));
                 self.cmd = CMDapp::Idle;
             }
             CMDapp::Idle => (),
