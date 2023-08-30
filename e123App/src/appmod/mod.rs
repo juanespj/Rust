@@ -412,23 +412,8 @@ impl eframe::App for RenderApp {
                 _ => println!("Pressed key: {:?}", key),
             }
         }
-        if self.sersys.state == SerState::MONITOR {
-           
-            // sersys::arcreadserial(&self.sersys, self.datain.clone(), self.ser_state);
-            // if let Ok(mut data) = self.datain.try_lock() {
-            //     // Step 2: check that data is not yet assigned.
-            //     self.logger
-            //         .status
-            //         .entry("read".to_string())
-            //         .and_modify(|value| {
-            //             *value =
-            //                 vec![value[0].clone() + &self.sersys.status.get("read").unwrap()[0]]
-            //         })
-            //         .or_insert(vec![self.sersys.status.get("read").unwrap()[0].clone()]);
-
-            // log gui(&mut self.logger);
-        }
-        // }
+       
+    
         match self.msgs.ser_ch.1.try_recv() {
             Ok(msg) => {
                 // self.sersys = data.clone();
@@ -468,15 +453,10 @@ impl eframe::App for RenderApp {
                     self.sersys.state = SerState::IDLE;
                     println!("end");
                 }
-                if self.sersys.status.contains_key("start") {
-                    println!("start");
-                }
-                if self.sersys.status.contains_key("end") {
-                    println!("end");
-                }
-                if self.sersys.status.contains_key("list") {
-                    self.portlist = self.sersys.status.get("list").unwrap().to_vec()
-                }
+         
+                // if self.sersys.status.contains_key("list") {
+                //     self.portlist = self.sersys.status.get("list").unwrap().to_vec()
+                // }
             }
             Err(_) => { /* handle sender disconnected */ } //Err(TryRecvError::Empty) => { /* handle no data available yet */ }
         }
