@@ -23,8 +23,8 @@ fn main() {
     let mut threads: Vec<thread::JoinHandle<()>> = Vec::new();
     let mut portlist = listports();
     let mut port_sel = "".to_string();
-    if portlist.len() == 1 {
-        port_sel = portlist[0].num.clone();
+    if portlist.len() == 2 {
+        port_sel = portlist[1].num.clone();
     }
 
     println!("Port {}", port_sel);

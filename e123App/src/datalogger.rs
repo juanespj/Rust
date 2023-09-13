@@ -1,6 +1,7 @@
 use crate::appmod::objects;
+use binary_search::{binary_search, Direction};
 use chrono::{NaiveDate, Timelike, Utc};
-use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
+use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text, *};
 use egui::Color32;
 use egui::*;
 use serde_derive::{Deserialize, Serialize};
@@ -89,6 +90,7 @@ pub fn log_process(logctrl: &mut LoggerCtrl) {
 
             // println!("rawSTOP:{:?}", raw);
         }
+        //"DATAINr\n\r-run\r\n>STARTLOG\r\nT,0,25.000\r\nP1,2,6.372\r\nP2,206,2488.400\r\nT,206,25.250\r\nP1,206,6.352\r\nP2,408,2488.400\r\nT,408,25.000\r\nP1,408,6.417\r\nP2,610,2488.400\r\nT,610,25.000\r\nP1,610,6.199\r\nP2,812,2488.400...
         // let cnt = tmp.matches("\r\n").count();
         let mut i = 0;
         logctrl.data.clear();
@@ -96,30 +98,33 @@ pub fn log_process(logctrl: &mut LoggerCtrl) {
         for mut row in tmp.split("\r\n") {
             if row.len() > 0 {
                 let cnt = row.matches(',').count();
-                if cnt > 2 || row.chars().last().unwrap() != '<' {
-                    if row.contains('<') {
-                        (_, row) = row.split_once('<').unwrap();
-                    }
+                if cnt > 2 {
+                    //|| row.chars().last().unwrap() != '<'
+                    // if row.contains('<') {
+                    //     (_, row) = row.split_once('<').unwrap();
+                    // }
                     if row.matches(',').count() > 2 {
-                        println!("err:{:?}", row);
+                        println!("err [,]:{:?}", row);
                         continue;
                     }
                 }
-                let matched: Result<(String, u32, f32), _> = try_scan!(row =>"{},{},{}<");
+                let matched: Result<(String, u32, f32), _> = try_scan!(row =>"{},{},{}");
                 match matched {
                     Ok((var, time, val)) => {
                         //    println!("{} {} {}",var, time,  val);
 
-                        if var == "PH" || var == "PB"  {//&& val <= 1500.0
+                        if var == "P1" || var == "P2" || var == "T" {
+                            //&& val <= 1500.0
                             let tkey = format!("t{}", var);
                             let mut tout = time;
                             if logctrl.data.contains_key(&tkey) {
                                 let last = logctrl.data.get(&tkey).unwrap().len() - 1;
-                                let tlast = logctrl.data.get(&tkey).unwrap()[last].clone();                                
-                            if tout < (tlast * 1000.0) as u32 {
-                                let deltat= logctrl.data.get(&tkey).unwrap()[last].clone()-logctrl.data.get(&tkey).unwrap()[last-1].clone();
-                                tout = ((tlast + deltat )* 1000.0 ) as u32 ;
-                            }
+                                let tlast = logctrl.data.get(&tkey).unwrap()[last].clone();
+                                if tout < (tlast * 1000.0) as u32 {
+                                    let deltat = logctrl.data.get(&tkey).unwrap()[last].clone()
+                                        - logctrl.data.get(&tkey).unwrap()[last - 1].clone();
+                                    tout = ((tlast + deltat) * 1000.0) as u32;
+                                }
                             }
 
                             logctrl
@@ -155,115 +160,115 @@ pub fn log_process(logctrl: &mut LoggerCtrl) {
     // }
 }
 
-pub fn log_plot(logctrl: &mut LoggerCtrl) {
-    // let dt = 0.1;
-    // let mut obj = logctrl.objstate.get("rbb").unwrap().clone();
-    // let mut data = logctrl.data.clone();
-    let mut lightgate = false;
-    // let x_sp = 3.0 * signum(((logctrl.anim_state.step as f64) * PI / 50.0).cos()); //square
-    if logctrl.status.contains_key("read") {
-        // let mut buff = "".to_string();
-        // if logctrl.status.contains_key("buffer") {
-        //     buff = logctrl.status.get("buffer").unwrap()[0].clone();
-        //     println!("buffer:{:?}", buff);
-        //     logctrl.status.remove_entry("buffer");
-        // }
-        //  buff +&
-        let mut raw: String = logctrl.status.get("read").unwrap()[0].clone();
+// pub fn log_plot(logctrl: &mut LoggerCtrl) {
+//     // let dt = 0.1;
+//     // let mut obj = logctrl.objstate.get("rbb").unwrap().clone();
+//     // let mut data = logctrl.data.clone();
+//     let mut lightgate = false;
+//     // let x_sp = 3.0 * signum(((logctrl.anim_state.step as f64) * PI / 50.0).cos()); //square
+//     if logctrl.status.contains_key("read") {
+//         // let mut buff = "".to_string();
+//         // if logctrl.status.contains_key("buffer") {
+//         //     buff = logctrl.status.get("buffer").unwrap()[0].clone();
+//         //     println!("buffer:{:?}", buff);
+//         //     logctrl.status.remove_entry("buffer");
+//         // }
+//         //  buff +&
+//         let mut raw: String = logctrl.status.get("read").unwrap()[0].clone();
 
-        // println!("raw:{:?}", raw);
-        if raw.contains("STOPLOG") {
-            raw = raw.split("STOPLOG").collect();
-            logctrl.state = LoggerState::IDLE;
-            // println!("rawSTOP:{:?}", raw);
-        }
-        if raw.contains("STARTLOG") {
-            logctrl.state = LoggerState::MONTORING;
+//         // println!("raw:{:?}", raw);
+//         if raw.contains("STOPLOG") {
+//             raw = raw.split("STOPLOG").collect();
+//             logctrl.state = LoggerState::IDLE;
+//             // println!("rawSTOP:{:?}", raw);
+//         }
+//         if raw.contains("STARTLOG") {
+//             logctrl.state = LoggerState::MONTORING;
 
-            raw = raw.split("STARTLOG").collect::<Vec<&str>>()[1].to_string();
-        }
-        // if raw.contains("LG") {
-        //     lightgate = true;
-        // }
+//             raw = raw.split("STARTLOG").collect::<Vec<&str>>()[1].to_string();
+//         }
+//         // if raw.contains("LG") {
+//         //     lightgate = true;
+//         // }
 
-        logctrl.status.remove_entry("read");
+//         logctrl.status.remove_entry("read");
 
-        // let mut rdr = csv::Reader::from_reader(raw.as_bytes());
-        // for result in rdr.deserialize(Record) {
-        //     match result {
-        //         Ok(record) => println!("{:?}", record),
-        //         Err(_) => { /* handle sender disconnected */ }
-        //     }
-        //     //   let record: Record = result?;
-        //
-        // }
-        //println!("{:?}", raw);
-        logctrl.data.clear();
-        // if raw.matches("\r\n").count() > 1 {
-        //     let last = raw.split("\r\n").last().unwrap();
-        //     if last.len() > 0 {
-        //         if !matches!(last.chars().last().unwrap(), '<') {
-        //             logctrl
-        //                 .status
-        //                 .entry("buffer".to_string())
-        //                 .or_insert_with(Vec::new)
-        //                 .push(last.to_string());
-        //         }
-        //     }
-        // }
-        let cnt = raw.matches("\r\n").count();
-        let mut i = 0;
-        for row in raw.split("\r\n") {
-            if row.len() > 0 {
-                let cnt = row.matches(',').count();
-                if cnt > 2 || row.chars().last().unwrap() != '<' {
-                    println!("err:{:?}", row);
-                    continue;
-                }
-                let matched: Result<(String, u32, f32), _> = try_scan!(row =>"{},{},{}<");
-                match matched {
-                    Ok((var, time, val)) => {
-                        //  println!("D:{} => {}", var, val);
+//         // let mut rdr = csv::Reader::from_reader(raw.as_bytes());
+//         // for result in rdr.deserialize(Record) {
+//         //     match result {
+//         //         Ok(record) => println!("{:?}", record),
+//         //         Err(_) => { /* handle sender disconnected */ }
+//         //     }
+//         //     //   let record: Record = result?;
+//         //
+//         // }
+//         //println!("{:?}", raw);
+//         logctrl.data.clear();
+//         // if raw.matches("\r\n").count() > 1 {
+//         //     let last = raw.split("\r\n").last().unwrap();
+//         //     if last.len() > 0 {
+//         //         if !matches!(last.chars().last().unwrap(), '<') {
+//         //             logctrl
+//         //                 .status
+//         //                 .entry("buffer".to_string())
+//         //                 .or_insert_with(Vec::new)
+//         //                 .push(last.to_string());
+//         //         }
+//         //     }
+//         // }
+//         let cnt = raw.matches("\r\n").count();
+//         let mut i = 0;
+//         for row in raw.split("\r\n") {
+//             if row.len() > 0 {
+//                 let cnt = row.matches(',').count();
+//                 if cnt > 2 || row.chars().last().unwrap() != '<' {
+//                     println!("err:{:?}", row);
+//                     continue;
+//                 }
+//                 let matched: Result<(String, u32, f32), _> = try_scan!(row =>"{},{},{}");
+//                 match matched {
+//                     Ok((var, time, val)) => {
+//                         //  println!("D:{} => {}", var, val);
 
-                        if (var == "PH" || var == "W") && val <= 1500.0 {
-                            let tkey = format!("t{}", var);
-                            let mut tout = time;
-                            if logctrl.data.contains_key(&tkey) {
-                                let last = logctrl.data.get(&tkey).unwrap().len() - 1;
-                                let tlast = logctrl.data.get(&tkey).unwrap()[last].clone();
+//                         if var == "P1" ||var == "P2" || var == "T" {//&& val <= 1500.0
+//                             let tkey = format!("t{}", var);
+//                             let mut tout = time;
+//                             if logctrl.data.contains_key(&tkey) {
+//                                 let last = logctrl.data.get(&tkey).unwrap().len() - 1;
+//                                 let tlast = logctrl.data.get(&tkey).unwrap()[last].clone();
 
-                                if tout < (tlast * 1000.0) as u32 {
-                                    tout = (tlast * 1000.0) as u32 + 5;
-                                }
-                            }
-                            logctrl
-                                .data
-                                .entry(tkey)
-                                .or_insert_with(Vec::new)
-                                .push(tout as f64 / 1000.0);
-                            logctrl
-                                .data
-                                .entry(format!("{}", var))
-                                .or_insert_with(Vec::new)
-                                .push(val as f64);
-                        }
-                    }
-                    Err(_e) => {
-                        if i == cnt {
-                            logctrl
-                                .status
-                                .entry("buffer".to_string())
-                                .or_insert_with(Vec::new)
-                                .push(row.to_string());
-                        }
-                    }
-                }
-            }
-            i += 1;
-            // assert_eq!(a + b, c);d
-        }
-    }
-}
+//                                 if tout < (tlast * 1000.0) as u32 {
+//                                     tout = (tlast * 1000.0) as u32 + 5;
+//                                 }
+//                             }
+//                             logctrl
+//                                 .data
+//                                 .entry(tkey)
+//                                 .or_insert_with(Vec::new)
+//                                 .push(tout as f64 / 1000.0);
+//                             logctrl
+//                                 .data
+//                                 .entry(format!("{}", var))
+//                                 .or_insert_with(Vec::new)
+//                                 .push(val as f64);
+//                         }
+//                     }
+//                     Err(_e) => {
+//                         if i == cnt {
+//                             logctrl
+//                                 .status
+//                                 .entry("buffer".to_string())
+//                                 .or_insert_with(Vec::new)
+//                                 .push(row.to_string());
+//                         }
+//                     }
+//                 }
+//             }
+//             i += 1;
+//             // assert_eq!(a + b, c);d
+//         }
+//     }
+// }
 
 pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
     ui.separator();
@@ -278,22 +283,35 @@ pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
     let nokeys = data.keys().len() / 2;
     let w_height = ui.available_height();
     let w_width = ui.available_width();
-    let color = [Color32::LIGHT_BLUE, Color32::LIGHT_GREEN];
-    let mut i = 0;
+    let color = [
+        Color32::LIGHT_BLUE,
+        Color32::LIGHT_GREEN,
+        Color32::LIGHT_GREEN,
+        Color32::LIGHT_GREEN,
+    ];
+    let mut ix = 0;
+    let plotgroup_id = ui.id().with("linked_plots");
     for key in data.keys() {
         if key.chars().nth(0).unwrap() != 't' {
             let plot = Plot::new(format!("plt{}", key))
                 .width(w_width * 0.8)
-                .height(w_height / nokeys as f32)
-                .auto_bounds_x()
-                .auto_bounds_y()
+                .height(w_height * 0.8 / nokeys as f32)
                 .allow_zoom(true)
                 .allow_drag(true)
+                .allow_double_click_reset(true)
                 .show_axes([true; 2])
                 .show_background(false)
-                .legend(Legend::default());
+                .legend(Legend::default())
+                .coordinates_formatter(Corner::LeftBottom, CoordinatesFormatter::default());
+            // .link_axis(plotgroup_id, true, false)
+            // .link_cursor(plotgroup_id, true, true);
+            let t = data.get(&format!("t{}", key)).unwrap();
+            let x = data.get(key).unwrap();
 
-            plot.show(ui, |plot_ui| {
+            // println!("{}t{:?}\n\r{:?}\r\n\n", key, t, x);
+            let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
+            let planned_line = Line::new(plt).color(color[ix]);
+            let plotint = plot.show(ui, |plot_ui| {
                 // if key.contains("LG1") {
                 //     let t = data.get("tLG1").unwrap();
                 //     let x = data.get("LG1").unwrap();
@@ -302,15 +320,31 @@ pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
                 //     let planned_line = Line::new(plt).color(Color32::from_rgb(150, 255, 150));
                 //     plot_ui.line(planned_line.name("%Obscuration"));
                 // } else {
-                let t = data.get(&format!("t{}", key)).unwrap();
-                let x = data.get(key).unwrap();
-                let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
-                let planned_line = Line::new(plt).color(color[i]);
-                plot_ui.line(planned_line.name(key));
+                (
+                    plot_ui.line(planned_line.name(key)),
+                    // plot_ui.pointer_coordinate(),
+                    // plot_ui.pointer_coordinate_drag_delta(),
+                    // plot_ui.plot_bounds(),
+                    // plot_ui.plot_clicked(),
+                )
                 // }
             });
-            i += 1;
-            ui.separator();
+
+            // if plotint.response.clicked() {
+            //     if plotint.inner.1.is_some() {
+            //         let t = plotint.inner.1.unwrap().x.clone();
+
+            //         let result =  data.get(key).unwrap().binary_search_by(|probe| probe.total_cmp(&(t as f64)));
+
+            //         match result {
+            //             Ok(i) => println!("Found at {}", i),
+            //             Err(i) => println!("Not found, could be inserted at {}", i),
+            //         }
+            //     }
+            // }
+            // let coordinate_text = format!("{:?}", plotint.inner.1);
+            // ui.label(format!("pointer coordinate: {coordinate_text}"));
+            ix += 1;
         }
     }
 }

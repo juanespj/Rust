@@ -4,7 +4,7 @@ use serialport::{available_ports, DataBits, SerialPortType, StopBits};
 use std::collections::HashMap;
 use std::io::{self, Write};
 // use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc,  RwLock};
+use std::sync::{mpsc, Arc, RwLock};
 use std::time::Instant;
 use std::{
     // error::Error,
@@ -225,24 +225,25 @@ fn readserial(sys: &mut SerSys) {
     if port_name != "-".to_string() {
         let stop_bits = StopBits::One;
         let data_bits = DataBits::Eight;
-        let baud_rate: u32 = 250000;
+        let baud_rate: u32 = 115200;
         let builder = serialport::new(port_name.clone(), baud_rate)
-                        .stop_bits(stop_bits)
-                        .data_bits(data_bits);
-        match builder.timeout(Duration::from_millis(10)).open() {
+            .stop_bits(stop_bits)
+            .data_bits(data_bits);
+        match builder.timeout(Duration::from_millis(2000)).open() {
             Ok(mut port) => {
-                let mut serial_buf: Vec<u8> = vec![0; 100];
+                let mut serial_buf: Vec<u8> = vec![0; 500];
                 //println!("Receiving data on {} at {} baud:", &port_name, &baud_rate);
                 let mut dataout: String = "".to_string();
-                match port.read(serial_buf.as_mut_slice()) {
-                    Ok(t) => {
-                        //io::stdout().write_all(&serial_buf[..t]).unwrap();
-                        dataout = String::from_utf8_lossy(&serial_buf[..t]).to_string();
+                while port.bytes_to_read().unwrap() > 0 {
+                    match port.read(serial_buf.as_mut_slice()) {
+                        Ok(t) => {
+                            //io::stdout().write_all(&serial_buf[..t]).unwrap();
+                            dataout = String::from_utf8_lossy(&serial_buf[..t]).to_string();
+                        }
+                        Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
+                        Err(e) => eprintln!("{:?}", e),
                     }
-                    Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
-                    Err(e) => eprintln!("{:?}", e),
                 }
-
                 if dataout.len() > 0 {
                     //   println!("data:{:?}", dataout);
                     // sys.status.insert(
@@ -287,7 +288,7 @@ pub fn arcreadserial(
     // self::listports(&mut sys);
     let stop_bits = StopBits::One;
     let data_bits = DataBits::Eight;
-    let baud_rate: u32 = 250000;
+    let baud_rate: u32 = 115200;
     let mut newmsg: u8 = 0;
     let mut loop_lock: u8 = 1;
     let mut now = Instant::now();
@@ -320,14 +321,14 @@ pub fn arcreadserial(
         // loop_lock = 1;
         match sys.state {
             SerState::MONITOR => {
-                if port_name != "-".to_string() {                  
+                if port_name != "-".to_string() {
                     let builder = serialport::new(port_name.clone(), baud_rate)
                         .stop_bits(stop_bits)
                         .data_bits(data_bits);
-             
+
                     let mut serial_buf: Vec<u8> = vec![0; 1000];
                     //println!("Receiving data on {} at {} baud:", &port_name, &baud_rate);
-                    match builder.timeout(Duration::from_millis(10)).open() {
+                    match builder.timeout(Duration::from_millis(100)).open() {
                         Ok(mut port) => {
                             match &port.read(serial_buf.as_mut_slice()) {
                                 Ok(t) => {
@@ -341,19 +342,20 @@ pub fn arcreadserial(
 
                             if dataouttmp.len() > 0 && hold_write == 0 {
                                 let mut w = dataout.write().unwrap();
-                                *w = dataouttmp.clone();                              
-                   
+                                *w = dataouttmp.clone();
+
                                 // println!("data:{:?}", dataouttmp);
                                 sys.status
                                     .insert("dataav".to_string(), vec!["".to_string()]);
                                 newmsg = 1;
                                 hold_write = 1;
-                            }
-                            if dataouttmp.contains(">STOP") {
-                                sys.state = SerState::IDLE;
-                                sys.status.insert("STOP".to_string(), vec!["".to_string()]);
-                                // sys.status.remove("read");
-                                newmsg = 1;
+
+                                if dataouttmp.contains(">STOP") {
+                                    sys.state = SerState::IDLE;
+                                    sys.status.insert("STOP".to_string(), vec!["".to_string()]);
+                                    // sys.status.remove("read");
+                                    newmsg = 1;
+                                }
                             }
                         }
                         Err(e) => {
@@ -388,7 +390,7 @@ pub fn sendserial(sys: &mut SerSys) {
         let msg = &sys.status.get("write").unwrap().to_vec()[0];
         let stop_bits = StopBits::One;
         let data_bits = DataBits::Eight;
-        let baud_rate: u32 = 250000;
+        let baud_rate: u32 = 115200;
 
         let builder = serialport::new(port_name.clone(), baud_rate)
             .stop_bits(stop_bits)

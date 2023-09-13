@@ -387,6 +387,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
+name = "binary-search"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bea0ab2808834a04d4ae0d831f476217fdbee35cb620bf6b2e5807a4e9435776"
+
+[[package]]
 name = "bindgen"
 version = "0.65.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -932,6 +938,40 @@ name = "downcast-rs"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
+
+[[package]]
+name = "e123"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "binary-search",
+ "byteorder",
+ "calamine",
+ "chrono",
+ "color-eyre",
+ "device_query",
+ "eframe",
+ "egui",
+ "futures",
+ "gnuplot",
+ "image",
+ "log",
+ "ndarray",
+ "num 0.4.0",
+ "rand 0.8.5",
+ "rfd",
+ "serde",
+ "serde_bytes",
+ "serde_derive",
+ "serde_json",
+ "serialport",
+ "statistical",
+ "strp",
+ "sysinfo",
+ "tokio",
+ "uuid",
+ "xlsxwriter",
+]
 
 [[package]]
 name = "ecolor"
@@ -1603,39 +1643,6 @@ name = "itoa"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c8af84674fe1f223a982c933a0ee1086ac4d4052aa0fb8060c12c6ad838e754"
-
-[[package]]
-name = "jeapp"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "byteorder",
- "calamine",
- "chrono",
- "color-eyre",
- "device_query",
- "eframe",
- "egui",
- "futures",
- "gnuplot",
- "image",
- "log",
- "ndarray",
- "num 0.4.0",
- "rand 0.8.5",
- "rfd",
- "serde",
- "serde_bytes",
- "serde_derive",
- "serde_json",
- "serialport",
- "statistical",
- "strp",
- "sysinfo",
- "tokio",
- "uuid",
- "xlsxwriter",
-]
 
 [[package]]
 name = "jni"

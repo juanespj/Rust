@@ -25,6 +25,6 @@ fn main() {
     let _launch = eframe::run_native(
         "DataCapture",
         options,
-        Box::new(|cc| Box::new(jeapp::RenderApp::new(cc))),
+        Box::new(|cc| Box::new(e123::RenderApp::new(cc))),
     );
 }

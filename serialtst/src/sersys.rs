@@ -176,11 +176,10 @@ pub fn flushserial(sys: &mut SerSys) {
                 //println!("Receiving data on {} at {} baud:", &port_name, &baud_rate);
                 let mut dataout: String = "".to_string();
                 match port.read(serial_buf.as_mut_slice()) {
-                    Ok(t) => { 
-                    }
+                    Ok(t) => {}
                     Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
                     Err(e) => eprintln!("{:?}", e),
-                }              
+                }
             }
             Err(e) => {
                 eprintln!("Failed to open \"{}\". Error: {}", &port_name, e);
@@ -212,10 +211,9 @@ pub fn arcreadserial(
     let mut now = Instant::now();
     let mut port_name = "".to_string();
     let mut dataouttmp = "".to_string();
-    let mut hold_write = 0; 
-    
+    let mut hold_write = 0;
+
     while loop_lock == 1 {
-       
         match rx_a.try_recv() {
             //when message from app is received
             Ok(msg) => {
@@ -227,7 +225,7 @@ pub fn arcreadserial(
                 if msg.status.contains_key("START") {
                     sys.state = SerState::MONITOR;
                     port_name = msg.status.get("sel").unwrap().to_vec()[0].clone();
-                    println!("monitoring {}",port_name);
+                    println!("monitoring {}", port_name);
                 }
                 if hold_write == 1 {
                     if msg.status.contains_key("ack") {
@@ -239,24 +237,26 @@ pub fn arcreadserial(
         }
         // loop_lock = 1;
         match sys.state {
-            SerState::MONITOR => {            
+            SerState::MONITOR => {
                 if port_name != "-".to_string() {
                     let baud_rate: u32 = 115200;
                     let port = serialport::new(port_name.clone(), baud_rate)
-                        .timeout(Duration::from_millis(10))
+                        .timeout(Duration::from_millis(200))
                         .open();
                     let mut serial_buf: Vec<u8> = vec![0; 100];
                     //println!("Receiving data on {} at {} baud:", &port_name, &baud_rate);
                     match port {
                         Ok(mut port) => {
-                            match &port.read(serial_buf.as_mut_slice()) {
-                                Ok(t) => {
-                                    //io::stdout().write_all(&serial_buf[..t]).unwrap();
-                                    dataouttmp +=
-                                        &String::from_utf8_lossy(&serial_buf[..*t]).to_string();
+                            while port.bytes_to_read().unwrap() > 0 {
+                                match &port.read(serial_buf.as_mut_slice()) {
+                                    Ok(t) => {
+                                        //io::stdout().write_all(&serial_buf[..t]).unwrap();
+                                        dataouttmp +=
+                                            &String::from_utf8_lossy(&serial_buf[..*t]).to_string();
+                                    }
+                                    Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
+                                    Err(e) => eprintln!("{:?}", e),
                                 }
-                                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
-                                Err(e) => eprintln!("{:?}", e),
                             }
 
                             if dataouttmp.len() > 0 && hold_write == 0 {
@@ -281,9 +281,8 @@ pub fn arcreadserial(
                             }
                             if dataouttmp.contains(">STOP") {
                                 sys.state = SerState::IDLE;
-                                sys.status
-                                .insert("STOP".to_string(), vec!["".to_string()]);
-                                // sys.status.remove("read");                               
+                                sys.status.insert("STOP".to_string(), vec!["".to_string()]);
+                                // sys.status.remove("read");
                                 newmsg = 1;
                             }
                         }

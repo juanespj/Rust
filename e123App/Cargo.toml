@@ -1,5 +1,5 @@
 [package]
-name = "jeapp"
+name = "e123"
 version = "0.1.0"
 authors = ["JE <juanes.pazj@mail.com>"]
 edition = "2021"
@@ -38,7 +38,7 @@ byteorder = "1.4.3"
 gnuplot = "0.0.38"
 xlsxwriter = "0.6.0"
 statistical = "1.0.0"
-
+binary-search = "0.1.2"
 image = { version = "0.24", default-features = false, features = ["png"] }
 
 
