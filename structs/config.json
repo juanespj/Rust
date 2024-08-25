@@ -1,0 +1,84 @@
+{
+  "types": {
+    "ProjType": [
+      "Cortinas",
+      "Pasamanos",
+      "Ventaneria",
+      "VidrioTemplado",
+      "Varios"
+    ],
+    "InType": [
+      "Factura",
+      "Transferencia",
+      "Cheque",
+      "Tarjeta",
+      "Efectivo",
+      "Retención"
+    ],
+    "OutType": [
+      "AluminioYaccesorios",
+      "Vidrio",
+      "Transporte",
+      "MaterialGeneral",
+      "Varios"
+    ],
+    "LabType": [
+      "Hector",
+      "Ricardo"
+    ],
+    "ExpenseType": [
+      "Arriendo",
+      "Sueldos",
+      "Servicios",
+      "Insumos",
+      "Otros"
+    ]
+  },
+  "structs": {
+    "InElem": {
+      "date": "date",
+      "intype": "intype",
+      "desc": "string",
+      "value": "currency"
+    },
+    "OutElem": {
+      "date": "date",
+      "outtype": "outtype",
+      "desc": "string",
+      "transno": "string",
+      "suplier": "string",
+      "value": "currency"
+    },
+    "LabElem": {
+      "desc": "string",
+      "value": "currency"
+    },
+    "MonthElem": {
+      "date": "date",
+      "outtype": "outtype",
+      "desc": "string",
+      "transno": "string",
+      "value": "currency"
+    },
+    "Report": {
+      "id": "String",
+      "project": "String",
+      "value": "String",
+      "startdate": "String",
+      "enddate": "String",
+      "powner": "String",
+      "ptype": "String",
+      "inc": "Vec<InElem>",
+      "out": "Vec<OutElem>",
+      "labour": "Vec<LabElem>",
+      "totalin": "f32",
+      "totalout": "f32",
+      "gross": "f32",
+      "complete": "bool"
+    },
+    "MonthReport": {
+      "proj": "Vec<Report>",
+      "month": "Vec<MonthElem>"
+    }
+  }
+}
