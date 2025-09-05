@@ -1,0 +1,130 @@
+{
+  "types": {
+     
+      "ProfCut": [
+          "count",
+          "len",
+          "cuttype"
+      ],
+      "ProfileSummary": [
+          "cost",
+          "req"
+      ],
+      "CutsProject": [
+          "name",
+          "sys"
+      ],
+      "ProjDet": [
+          "date",
+          "det"
+      ],
+      "CostElem":[
+          "prof",
+          "price"
+      ]
+  },
+  "structs": {
+      "CutsElem": {
+          "id": {
+              "tag": "ID",
+              "data_type": "u32"
+          },
+          "width": {
+              "tag": "Ancho",
+              "data_type": "f32"
+          },
+          "height": {
+              "tag": "Alto",
+              "data_type": "f32"
+          },
+          "div_hor": {
+              "tag": "Div. Horiz.",
+              "data_type": "String"
+          },
+          "div_ver": {
+              "tag": "Div. Vert.",
+              "data_type": "String"
+          },
+          "profile": {
+              "tag": "Perfil",
+              "data_type": "String"
+          },
+          "vidrio": {
+              "tag": "Vidrio",
+              "data_type": "String"
+          },
+          "qty": {
+              "tag": "Cantidad",
+              "data_type": "u32"
+          },
+          "finish": {
+              "tag": "Acabado",
+              "data_type": "String"
+          },
+          "x": {
+              "tag": "x",
+              "data_type": "String"
+          },
+          "o": {
+              "tag": "o",
+              "data_type": "String"
+          }
+      },
+      "ProfCut": {
+          "count": {
+              "tag": "Cantidad",
+              "data_type": "u32"
+          },
+          "len": {
+              "tag": "Largo",
+              "data_type": "u32"
+          },
+          "cuttype": {
+              "tag": "Tipo",
+              "data_type": "String"
+          }
+      },
+      "ProfileSummary": {
+          "cost": {
+              "tag": "Costo",
+              "data_type": "String"
+          },
+          "req": {
+              "tag": "Requerido",
+              "data_type": "String"
+          }
+      },
+      "CutsProject": {
+          "name": {
+              "tag": "Proyecto",
+              "data_type": "String"
+          },
+          "sys": {
+              "tag": "CutsElem",
+              "data_type": "Vec<CutsElem>"
+          }
+      },
+      "ProjDet": {
+          "date": {
+              "tag": "Fecha",
+              "data_type": "Date"
+          },
+          "det": {
+              "tag": "Detalle",
+              "data_type": "Vec<CutsProject>"
+          }
+      }
+      ,
+      "CostElem":{
+          "prof": {
+              "tag": "Perfil",
+              "data_type": "String"
+          },
+          "price": {
+              "tag": "Costo",
+              "data_type": "$"
+          }}
+      
+  }
+ 
+}

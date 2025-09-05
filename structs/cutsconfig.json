@@ -1,0 +1,254 @@
+{
+  "types": {
+      "Vidrio": [
+          "CrudoClaro 6",
+          "CrudoClaro 8",
+          "CrudoBronc 6",
+          "CrudoBronc 8",
+          "CrudoAlac 6",
+          "LamClaro 6",
+          "LamClaro 8",
+          "LamBronce 6",
+          "LamBronce 8",
+          "Temp. Claro 6",
+          "Temp. Claro 8",
+          "Temp. Claro 10"
+      ],
+      "AlumSys": [
+          "S100",
+          "S200",
+          "T45_1",
+          "T45_2",
+          "T45_3",
+          "PuertaBatiente",
+          "Proyectable",
+          "CorredizaSTD",
+          "PuertaSTD",
+          "PuertaSTD1",
+          "P4200_1",
+          "P4200_2",
+          "P4200_3",
+          "S3000",
+          "S3000Proy",
+          "CurtainWall"
+      ],
+      "AlumFinish": [
+          "Natural",
+          "Bronce",
+          "Maderado",
+          "Blanco"
+      ],
+      "CutsElem": [
+          "id",
+          "width",
+          "height",
+          "div_hor",
+          "div_ver",
+          "profile",
+          "glass",
+          "qty",
+          "finish",
+          "x",
+          "o"
+      ],
+      "ProfCut": [
+          "count",
+          "len",
+          "cuttype"
+      ],
+      "ProfileSummary": [
+          "cost",
+          "req"
+      ],
+      "CutsProject": [
+          "name",
+          "sys"
+      ],
+      "ProjDet": [
+          "date",
+          "det"
+      ],
+      "CostElem":[
+          "prof",
+          "price"
+      ]
+  },
+  "structs": {
+      "CutsElem": {
+          "id": {
+              "tag": "ID",
+              "data_type": "u32"
+          },
+          "width": {
+              "tag": "Ancho",
+              "data_type": "f32"
+          },
+          "height": {
+              "tag": "Alto",
+              "data_type": "f32"
+          },
+          "div_hor": {
+              "tag": "Div. Horiz.",
+              "data_type": "String"
+          },
+          "div_ver": {
+              "tag": "Div. Vert.",
+              "data_type": "String"
+          },
+          "profile": {
+              "tag": "Perfil",
+              "data_type": "String"
+          },
+          "vidrio": {
+              "tag": "Vidrio",
+              "data_type": "String"
+          },
+          "qty": {
+              "tag": "Cantidad",
+              "data_type": "u32"
+          },
+          "finish": {
+              "tag": "Acabado",
+              "data_type": "String"
+          },
+          "x": {
+              "tag": "x",
+              "data_type": "String"
+          },
+          "o": {
+              "tag": "o",
+              "data_type": "String"
+          }
+      },
+      "ProfCut": {
+          "count": {
+              "tag": "Cantidad",
+              "data_type": "u32"
+          },
+          "len": {
+              "tag": "Largo",
+              "data_type": "u32"
+          },
+          "cuttype": {
+              "tag": "Tipo",
+              "data_type": "String"
+          }
+      },
+      "ProfileSummary": {
+          "cost": {
+              "tag": "Costo",
+              "data_type": "String"
+          },
+          "req": {
+              "tag": "Requerido",
+              "data_type": "String"
+          }
+      },
+      "CutsProject": {
+          "name": {
+              "tag": "Proyecto",
+              "data_type": "String"
+          },
+          "sys": {
+              "tag": "CutsElem",
+              "data_type": "Vec<CutsElem>"
+          }
+      },
+      "ProjDet": {
+          "date": {
+              "tag": "Fecha",
+              "data_type": "Date"
+          },
+          "det": {
+              "tag": "Detalle",
+              "data_type": "Vec<CutsProject>"
+          }
+      }
+      ,
+      "CostElem":{
+          "prof": {
+              "tag": "Perfil",
+              "data_type": "String"
+          },
+          "price": {
+              "tag": "Costo",
+              "data_type": "$"
+          }}
+      
+  },
+  "profiles": {
+      "SysS100": [
+          "perfijo",
+          "permov",
+          "junquillo",
+          "tapaacanalada",
+          "ancla"
+      ],
+      "T45": [
+          "riel",
+          "hoja",
+          "entrecierre",
+          "adaptriel",
+          "adapthoja"
+      ],
+      "VenProy": [
+          "marco",
+          "junquillo",
+          "hoja",
+          "p1444"
+      ],
+      "PuBat": [
+          "marco",
+          "tubo2",
+          "tubo4",
+          "p1127",
+          "p1128",
+          "t"
+      ],
+      "CoSTD": [
+          "jamba",
+          "rielsup",
+          "rielinf",
+          "parante",
+          "peinazo"
+      ],
+      "PCoSTD": [
+          "jamba",
+          "rielsup",
+          "rielinf1",
+          "rielinf2",
+          "horinf",
+          "horsup",
+          "chapero",
+          "entrecierre",
+          "adapt"
+      ],
+      "S3000P": [
+          "marco",
+          "pisavid",
+          "hoja",
+          "p1444"
+      ],
+      "S3000F": [
+          "marco",
+          "pisavid",
+          "interm",
+          "refuerzo"
+      ],
+      "P4200": [
+          "marco",
+          "adaptmarco",
+          "hoja",
+          "entrecierre",
+          "adaptadorh",
+          "pistarec",
+          "pistsup"
+      ],
+      "CoWall": [
+          "espalda",
+          "tapa",
+          "contapa",
+          "camisa"
+      ]
+  }
+}
