@@ -1,16 +1,15 @@
+use egui::Color32;
+use egui::*;
+use egui_plot::{Line, Plot, PlotPoints, *}; //Legend
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::{
     error::Error,
     str,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-
-use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
-use egui::Color32;
-use egui::*;
 
 use crate::appmod::objects;
 
@@ -56,8 +55,8 @@ impl Default for RbbCtrl {
                 ("w".to_string(), 15.0),
                 ("h".to_string(), 0.10),
                 ("a".to_string(), 0.00),
-                ("av".to_string(), 0.00), 
-                ("aa".to_string(), 0.00), 
+                ("av".to_string(), 0.00),
+                ("aa".to_string(), 0.00),
                 ("r".to_string(), 0.5),
                 ("x".to_string(), 0.0),
                 ("xv".to_string(), 0.0),
@@ -71,13 +70,10 @@ impl Default for RbbCtrl {
 }
 
 pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
-    
-    let mut rbb=rbbctrl.rbb.clone();
+    let mut rbb = rbbctrl.rbb.clone();
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
-            if ui.button("rbb").clicked() {              
-            
-                
+            if ui.button("rbb").clicked() {
                 rbbctrl.rbb.insert(
                     "j".to_string(),
                     rbb.get("w").unwrap() * rbb.get("h").unwrap().powf(3.0) / 12.0,
@@ -104,54 +100,57 @@ pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
                 ui.add(egui::DragValue::new(rbbctrl.rbb.get_mut("w").unwrap()).speed(0.1));
                 ui.end_row();
                 ui.label("A: ");
-                let mut ang=rbbctrl.rbb.get("a").unwrap()*180.0/PI;
+                let mut ang = rbbctrl.rbb.get("a").unwrap() * 180.0 / PI;
                 ui.add(egui::DragValue::new(&mut ang).speed(0.1));
-                rbbctrl.rbb.entry("a".to_string()).and_modify(|k| *k =ang/180.0*PI);
+                rbbctrl
+                    .rbb
+                    .entry("a".to_string())
+                    .and_modify(|k| *k = ang / 180.0 * PI);
                 ui.end_row();
             });
         });
 
         if rbbctrl.objectlist.len() > 0 {
-            let plot = Plot::new("preview")
-                .include_x(0.0)
-                .include_y(0.0)
-                .width(600.0)
-                .height(200.0)
-                .view_aspect(1.0)
-                .data_aspect(1.0)
-                .allow_zoom(true)
-                .allow_drag(true)
-                .show_axes([false; 2])
-                .show_background(false)
-                .legend(Legend::default())
-                .center_y_axis(true);
+            // let plot = Plot::new("preview")
+            //     .include_x(0.0)
+            //     .include_y(0.0)
+            //     .width(600.0)
+            //     .height(200.0)
+            //     .view_aspect(1.0)
+            //     .data_aspect(1.0)
+            //     .allow_zoom(true)
+            //     .allow_drag(true)
+            //     .show_axes([false; 2])
+            //     .show_background(false)
+            //     .legend(Legend::default())
+            //     .center_y_axis(true);
 
-            plot.show(ui, |plot_ui| {
-                if rbbctrl.objectlist.len() > 0 {
-                    for obj in rbbctrl.objectlist.iter() {
-                        let x = &obj.points[0];
-                        let y = &obj.points[1];
-                        let plt: PlotPoints =
-                            (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
+            // plot.show(ui, |plot_ui| {
+            //     if rbbctrl.objectlist.len() > 0 {
+            //         for obj in rbbctrl.objectlist.iter() {
+            //             let x = &obj.points[0];
+            //             let y = &obj.points[1];
+            //             let plt: PlotPoints =
+            //                 (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
 
-                        let planned_line = Line::new(plt).color(Color32::from_rgb(
-                            obj.color[0],
-                            obj.color[1],
-                            obj.color[2],
-                        ));
-                        plot_ui.line(planned_line);
-                    }
-                }
-                let rbb = rbbctrl.objstate.get("rbb").unwrap().clone();
-                let beam_ang = rbb.get("a").unwrap();
-                plot_ui.arrows(Arrows::new(
-                    PlotPoints::from([2.0 * beam_ang.sin(), -2.0 * beam_ang.cos()]),
-                    PlotPoints::from([0.2 * beam_ang.sin(), -0.2 * beam_ang.cos()]),
-                ));
+            //             let planned_line = Line::new(plt).color(Color32::from_rgb(
+            //                 obj.color[0],
+            //                 obj.color[1],
+            //                 obj.color[2],
+            //             ));
+            //             plot_ui.line(planned_line);
+            //         }
+            //     }
+            //     let rbb = rbbctrl.objstate.get("rbb").unwrap().clone();
+            //     let beam_ang = rbb.get("a").unwrap();
+            //     plot_ui.arrows(Arrows::new(
+            //         PlotPoints::from([2.0 * beam_ang.sin(), -2.0 * beam_ang.cos()]),
+            //         PlotPoints::from([0.2 * beam_ang.sin(), -0.2 * beam_ang.cos()]),
+            //     ));
 
-                let angle = format!("angle: {:.2}", rbb.get("a").unwrap());
-                plot_ui.text(Text::new(PlotPoint::new(10.0, 4.0), angle)); //.name("Text")
-            });
+            //     let angle = format!("angle: {:.2}", rbb.get("a").unwrap());
+            //     plot_ui.text(Text::new(PlotPoint::new(10.0, 4.0), angle)); //.name("Text")
+            // });
         }
     });
     if rbbctrl.anim_state.state == 1 {
@@ -180,36 +179,36 @@ pub fn rbb_gui(ctx: &Context, ui: &mut Ui, rbbctrl: &mut RbbCtrl) {
             //         // }
             //     });
         });
-        let plot = Plot::new("plt")
-            .include_x(0.0)
-            .include_y(0.0)
-            .width(600.0)
-            .height(180.0)
-            .view_aspect(1.0)
-            .data_aspect(1.0)
-            .allow_zoom(true)
-            .allow_drag(true)
-            .show_axes([true; 2])
-            .show_background(false)
-            .legend(Legend::default())
-            .center_y_axis(true);
+        // let plot = Plot::new("plt")
+        //     .include_x(0.0)
+        //     .include_y(0.0)
+        //     .width(600.0)
+        //     .height(180.0)
+        //     .view_aspect(1.0)
+        //     .data_aspect(1.0)
+        //     .allow_zoom(true)
+        //     .allow_drag(true)
+        //     .show_axes([true; 2])
+        //     .show_background(false)
+        //     .legend(Legend::default())
+        //     .center_y_axis(true);
 
-        plot.show(ui, |plot_ui| {
-            if rbbctrl.plt.contains_key("x") {
-                let t = rbbctrl.plt.get("t").unwrap();
-                let x = rbbctrl.plt.get("x").unwrap();
-                let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
+        // plot.show(ui, |plot_ui| {
+        //     if rbbctrl.plt.contains_key("x") {
+        //         let t = rbbctrl.plt.get("t").unwrap();
+        //         let x = rbbctrl.plt.get("x").unwrap();
+        //         let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
 
-                let planned_line = Line::new(plt).color(Color32::from_rgb(150, 255, 150));
-                plot_ui.line(planned_line.name("x"));
+        //         let planned_line = Line::new(plt).color(Color32::from_rgb(150, 255, 150));
+        //         plot_ui.line(planned_line.name("x"));
 
-                let e = rbbctrl.plt.get("e").unwrap();
-                let plt: PlotPoints = (0..x.len()).map(|i| [t[i], e[i]]).collect();
+        //         let e = rbbctrl.plt.get("e").unwrap();
+        //         let plt: PlotPoints = (0..x.len()).map(|i| [t[i], e[i]]).collect();
 
-                let planned_line = Line::new(plt).color(Color32::from_rgb(255, 50, 50));
-                plot_ui.line(planned_line.name("e"));
-            }
-        });
+        //         let planned_line = Line::new(plt).color(Color32::from_rgb(255, 50, 50));
+        //         plot_ui.line(planned_line.name("e"));
+        //     }
+        // });
     });
 }
 
@@ -226,10 +225,10 @@ pub fn rbb_anim(rbbctrl: &mut RbbCtrl) {
         rbb.entry("aold".to_string()).or_insert(0.0);
     }
     // rbb.entry("aa".to_string()).or_insert(default)
-    // rbb.get("av") 
-    // ("aa".to_string(), 0.00), 
-   // let a_out = 0.05 * ((rbbctrl.anim_state.step as f64) / 10.0).cos();
-   let a_out = 0.05 * ((rbbctrl.anim_state.step as f64) / 10.0).cos();
+    // rbb.get("av")
+    // ("aa".to_string(), 0.00),
+    // let a_out = 0.05 * ((rbbctrl.anim_state.step as f64) / 10.0).cos();
+    let a_out = 0.05 * ((rbbctrl.anim_state.step as f64) / 10.0).cos();
     let xv_out = rbb.get("xv").unwrap() - rbb.get("xa").unwrap() * dt;
     let x_out = rbb.get("x").unwrap() + xv_out * dt - 0.5 * rbb.get("xa").unwrap() * dt * dt;
     rbb.entry("xold".to_string()).or_insert(x_out.clone());

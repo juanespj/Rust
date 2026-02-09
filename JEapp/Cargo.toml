@@ -2,8 +2,7 @@
 name = "jeapp"
 version = "0.1.0"
 authors = ["JE <juanes.pazj@mail.com>"]
-edition = "2021"
-rust-version = "1.63"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
@@ -11,15 +10,46 @@ serde = ["uuid/serde", "serde_cr", "serde_bytes"]
 
 
 [dependencies]
-egui = "0.21.0"
+#ui Dependencies
+egui = "0.32.2"
+egui_extras = {version="0.32.2",features = ["svg","image"]} #egui_extras = { version = "*", features = ["all_loaders"] }
+image = { version = "0.25.8", features = ["jpeg", "png"] } # Add the types you want support for
+egui_plot = "0.33.0"
+# egui_tabs = "0.2.1"
+egui-notify = "0.20.0"
+eframe = { version = "0.32.2", features = ["persistence"] }
 num = "0.4.0"
-eframe = { version = "0.21.3", features = ["persistence"] }
-serde = { version = "1.0.162", features = ["derive"] } # You only need this if you want app persistence
-serde_json = { version = "1.0", features = ["preserve_order"] }
-serde_derive = "1.0.162"
-rfd = "0.11"
-serialport = "4.2.0"
-device_query = "1.1.3"
+
+
+serde = { version = "1.0.219", features = ["derive"] } # You only need this if you want app persistence
+serde_json = { version = "1.0.143", features = ["preserve_order"] }
+serde_derive = "1.0.219"
+rfd = "0.15.4"
+strp = "1.1.2"
+device_query = "4.0.1"
+serialport = "4.7.3"
+
+#random data generator
+genrs = "0.1.1"
+hex = "0.4.3"
+
+
+#logging to console and file
+ftail = "0.2"
+log = "0.4.28"
+term-painter = "0.4.0"
+
+
+#csv handling
+csv = "1.3.1"
+
+# iterator tools
+strum = "0.27.2"
+strum_macros = "0.27.2"
+
+#embed files to binary
+rust-embed="8.7.2"
+
 #macroquad = { version = "0.3.16", default-features = false }
 calamine = "0.19.1"
 windows = { version = "0.48.0", features = ["Devices_Bluetooth", "Devices_Bluetooth_GenericAttributeProfile", "Devices_Bluetooth_Advertisement", "Devices_Radios", "Foundation_Collections", "Foundation", "Storage_Streams"] }
@@ -27,13 +57,11 @@ ndarray = "0.15.6"
 color-eyre = "0.6.2"
 btleplug = { version = "0.10", features = ["serde"] }
 async-trait = "0.1.68"
-log = "0.4.17"
 thiserror = "1.0.40"
 uuid = "1.3.2"
 serde_cr = { package = "serde", version = "1.0.162", features = ["derive"], default-features = false, optional = true }
 serde_bytes = { version = "0.11.9", optional = true }
 futures = "0.3.28"
-tokio = { version = "1.28", features = ["macros", "rt", "rt-multi-thread", "sync"] }
 chrono = "0.4"
 sysinfo = "0.29.0"
 byteorder = "1.4.3"
@@ -41,7 +69,21 @@ gnuplot = "0.0.38"
 xlsxwriter = "0.6.0"
 statistical = "1.0.0"
 cargo-edit = "0.11.9"
-image = { version = "0.24", default-features = false, features = ["png"] }
+sync_wrapper = "1.0.2"
+reqwest = {version ="0.12.23", features = [ "json"]}
+tokio = { version = "1.47",  features = ["macros", "rt", "rt-multi-thread", "sync","full"] }
+
+clipboard-win = "5.4.1"
+
+# nordic ppk2 interface
+ppk2 = "0.1.3"
+
+tracing = "0.1.41"
+clap = { version ="4.5.47", features = ["derive", "env"] }
+anyhow = { version ="1.0.99", features = ["backtrace"] }
+ctrlc = "3.5.0"
+itertools = "0.14.0"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.48.0", features = ["Devices_Bluetooth", "Devices_Bluetooth_GenericAttributeProfile", "Devices_Bluetooth_Advertisement", "Devices_Radios", "Foundation_Collections", "Foundation", "Storage_Streams"] }
 

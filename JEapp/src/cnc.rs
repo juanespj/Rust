@@ -1,14 +1,14 @@
 use crate::appmod::data::processdata;
 use crate::appmod::objects;
+use egui_plot::{Line, Plot, PlotPoints, *}; //Legend
 
 use chrono::{NaiveDate, Timelike, Utc};
-use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
 use egui::Color32;
 use egui::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::{
     error::Error,
     str,
@@ -103,7 +103,7 @@ pub fn main_gui(ctx: &Context, ui: &mut Ui, cncctrl: &mut CNCCtrl) {
         objects::draw_3dmesh_surf(&mut mesh);
 
         cncctrl.surflist.push(mesh);
-      
+
         // if let Some(path) = rfd::FileDialog::new().pick_file() {
         //     self.picked_path = Some(path.display().to_string());
         //    data::processdata(path.display().to_string())
@@ -163,51 +163,50 @@ pub fn main_gui(ctx: &Context, ui: &mut Ui, cncctrl: &mut CNCCtrl) {
                 // .show_background(false)
                 .legend(Legend::default());
 
-            plot.show(ui, |plot_ui| {
-                if cncctrl.objectlist.len() > 0 {
-                    for obj in cncctrl.objectlist.iter() {
-                        let x = &obj.points[0];
-                        let y = &obj.points[1];
-                        let plt: PlotPoints =
-                            (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
+            // plot.show(ui, |plot_ui| {
+            //     if cncctrl.objectlist.len() > 0 {
+            //         for obj in cncctrl.objectlist.iter() {
+            //             let x = &obj.points[0];
+            //             let y = &obj.points[1];
+            //             let plt: PlotPoints =
+            //                 (0..x.len()).map(|i| [x[i] as f64, y[i] as f64]).collect();
 
-                        let planned_line = Line::new(plt).color(Color32::from_rgb(
-                            obj.color[0],
-                            obj.color[1],
-                            obj.color[2],
-                        ));
-                        plot_ui.line(planned_line);
-                    }
-                }
-                if cncctrl.surflist.len() > 0 {
-                    let rot: [f64; 2] = [
-                        plot_ui.pointer_coordinate_drag_delta()[0] as f64,
-                        plot_ui.pointer_coordinate_drag_delta()[1] as f64,
-                    ];
-                    if rot[0] != 0.0 || rot[1] != 0.0 {
-                        let mut i = 0;
-                        while i < cncctrl.surflist.len() {
-                            cncctrl.surflist[i].alph = rot[0] * 0.5 + cncctrl.surflist[i].alph;
-                            cncctrl.surflist[i].beta = rot[1] * 0.5 + cncctrl.surflist[i].beta;
-                            objects::draw_3dmesh_surf(&mut cncctrl.surflist[i]);
-                            i += 1;
-                        }
-                    }
-                    for obj in cncctrl.surflist.iter() {
-                        for surf in obj.points.iter() {
-                            let x = &surf[0];
-                            let y = &surf[1];
-                            let plt: PlotPoints = (0..x.len()).map(|i| [x[i], y[i]]).collect();
+            //             let planned_line = Line::new(plt).color(Color32::from_rgb(
+            //                 obj.color[0],
+            //                 obj.color[1],
+            //                 obj.color[2],
+            //             ));
+            //             plot_ui.line(planned_line);
+            //         }
+            //     }
+            //     if cncctrl.surflist.len() > 0 {
+            //         let rot: [f64; 2] = [
+            //             plot_ui.pointer_coordinate_drag_delta()[0] as f64,
+            //             plot_ui.pointer_coordinate_drag_delta()[1] as f64,
+            //         ];
+            //         if rot[0] != 0.0 || rot[1] != 0.0 {
+            //             let mut i = 0;
+            //             while i < cncctrl.surflist.len() {
+            //                 cncctrl.surflist[i].alph = rot[0] * 0.5 + cncctrl.surflist[i].alph;
+            //                 cncctrl.surflist[i].beta = rot[1] * 0.5 + cncctrl.surflist[i].beta;
+            //                 objects::draw_3dmesh_surf(&mut cncctrl.surflist[i]);
+            //                 i += 1;
+            //             }
+            //         }
+            //         for obj in cncctrl.surflist.iter() {
+            //             for surf in obj.points.iter() {
+            //                 let x = &surf[0];
+            //                 let y = &surf[1];
+            //                 let plt: PlotPoints = (0..x.len()).map(|i| [x[i], y[i]]).collect();
 
-                            let planned_surf =
-                                Polygon::new(plt).color(Color32::from_rgb(100, 200, 100));
-                            plot_ui.polygon(planned_surf);
-                        }
-                    }
-                }
-            });
+            //                 let planned_surf =
+            //                     Polygon::new(plt).color(Color32::from_rgb(100, 200, 100));
+            //                 plot_ui.polygon(planned_surf);
+            //             }
+            //         }
+            //     }
+            // });
             // self.data_ready = 0;
-            
         }
     });
 }

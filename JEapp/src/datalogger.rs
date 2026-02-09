@@ -1,12 +1,13 @@
 use crate::appmod::objects;
 use chrono::{NaiveDate, Timelike, Utc};
-use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
 use egui::Color32;
+use egui_plot::{Line, Plot, PlotPoints, *}; //Legend
+
 use egui::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::{
     error::Error,
     str,
@@ -165,23 +166,23 @@ pub fn log_gui(ctx: &Context, ui: &mut Ui, logctrl: &mut LoggerCtrl) {
                 .show_background(false)
                 .legend(Legend::default());
 
-            plot.show(ui, |plot_ui| {
-                if key.contains("LG1") {
-                    let t = data.get("tLG1").unwrap();
-                    let x = data.get("LG1").unwrap();
-                    let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
+            // plot.show(ui, |plot_ui| {
+            //     if key.contains("LG1") {
+            //         let t = data.get("tLG1").unwrap();
+            //         let x = data.get("LG1").unwrap();
+            //         let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
 
-                    let planned_line = Line::new(plt).color(Color32::from_rgb(150, 255, 150));
-                    plot_ui.line(planned_line.name("%Obscuration"));
-                } else {
-                    let t = data.get(&format!("t{}", key)).unwrap();
-                    let x = data.get(key).unwrap();
-                    let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
+            //         let planned_line = Line::new(plt).color(Color32::from_rgb(150, 255, 150));
+            //         plot_ui.line(planned_line.name("%Obscuration"));
+            //     } else {
+            //         let t = data.get(&format!("t{}", key)).unwrap();
+            //         let x = data.get(key).unwrap();
+            //         let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
 
-                    let planned_line = Line::new(plt).color(Color32::from_rgb(255, 50, 50));
-                    plot_ui.line(planned_line.name(key));
-                }
-            });
+            //         let planned_line = Line::new(plt).color(Color32::from_rgb(255, 50, 50));
+            //         plot_ui.line(planned_line.name(key));
+            //     }
+            // });
 
             ui.separator();
         }
