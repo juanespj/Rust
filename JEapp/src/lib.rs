@@ -10,5 +10,5 @@ pub mod services;
 pub use ltspice::SteppedSimulation;
 mod appmod;
 pub mod sys_tools;
-pub use appmod::RenderApp;
+pub use appmod::{Config, RenderApp};
 pub mod ppk2srvc;

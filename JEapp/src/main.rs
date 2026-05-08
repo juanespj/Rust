@@ -5,7 +5,9 @@ use log::LevelFilter;
 use rust_embed::RustEmbed;
 // use std::backtrace::Backtrace;
 use std::panic;
-use jeapp::sys_tools::{Config, readsys};
+use std::path::Path;
+use jeapp::{Config, RenderApp};
+use jeapp::sys_tools::readsys;
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn get_app_info() -> String {
@@ -48,7 +50,7 @@ fn main() {
     }
     if let Err(res) = Ftail::new()
         .console(LevelFilter::Debug)
-        .daily_file("logs", LevelFilter::Info)
+        .daily_file(Path::new("logs"), LevelFilter::Info)
         .init()
     {
         println!("Failed to initialize logger: {}", res);
