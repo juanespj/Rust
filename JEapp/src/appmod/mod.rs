@@ -244,7 +244,8 @@ impl eframe::App for RenderApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, root_ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = root_ui.ctx();
         let Self {
             label,
             timer,
@@ -326,7 +327,7 @@ impl eframe::App for RenderApp {
                 }
                 serial_port_ui(ui, self);
 
-                servic_gui(ui, &self.services);
+                servic_gui(ui, self.services.clone());
                 //bottom
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                     ui.horizontal(|ui| {

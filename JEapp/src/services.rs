@@ -8,6 +8,7 @@ use itertools::Itertools;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufReader, prelude::*};
+#[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, RwLock, mpsc};
@@ -17,9 +18,7 @@ use std::{
 };
 
 use sysinfo::System;
-use sysinfo::SystemExt;
 // use term_painter::Attr::*;
-use sysinfo::ProcessExt;
 use term_painter::Color::*;
 use term_painter::ToStyle;
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, PartialOrd)]
@@ -524,7 +523,7 @@ pub fn run_service(service: &str, path: String, cmd: String, check: bool) -> boo
                 //     .expect("failed to execute process");
                 // println!("{:?}", res.stdout.as_slice());
                 let mut child = Command::new("cmd")
-                    .raw_arg(args)
+                    .arg(args)
                     // .arg("/c")
                     // .arg(&cmd)
                     // .arg("start")

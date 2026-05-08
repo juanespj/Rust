@@ -1,6 +1,6 @@
 use crate::appmod::objects;
 use core::f64::consts::PI;
-use egui::widgets::plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
+use egui_plot::{Arrows, Legend, Line, Plot, PlotPoint, PlotPoints, Polygon, Text};
 use egui::Color32;
 use egui::*;
 use num::signum;
@@ -20,7 +20,7 @@ use std::{
     str, thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use sysinfo::{System, SystemExt};
+use sysinfo::System;
 
 use crate::ltspice::results::{DataType, PeakType};
 use crate::ltspice::SteppedSimulation;
@@ -158,8 +158,8 @@ pub fn lts_gui(ctx: &Context, ui: &mut Ui, simctrl: &mut SimCtrl) {
             let x = simctrl.plt.get("sense").unwrap();
             let plt: PlotPoints = (0..x.len()).map(|i| [t[i], x[i]]).collect();
 
-            let planned_line = Line::new(plt).color(Color32::from_rgb(150, 255, 150));
-            plot_ui.line(planned_line.name("sense"));
+            let planned_line = Line::new("sense", plt).color(Color32::from_rgb(150, 255, 150));
+            plot_ui.line(planned_line);
 
             // let e = simctrl.plt.get("e").unwrap();
             // let plt: PlotPoints = (0..x.len()).map(|i| [t[i], e[i]]).collect();
@@ -172,7 +172,7 @@ pub fn lts_gui(ctx: &Context, ui: &mut Ui, simctrl: &mut SimCtrl) {
 
 fn chk_running(name: &str) -> bool {
     let s = System::new_all();
-    for _process in s.processes_by_name(name) {
+    for _process in s.processes_by_name(name.as_ref()) {
         print!("\r{:?} - running", name);
         return true;
     }

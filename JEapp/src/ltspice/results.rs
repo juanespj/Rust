@@ -2,7 +2,7 @@
 //!
 //! The most important struct is the VariableResult. This struct contains all data and various functions to work with that data.
 use num::complex::Complex;
-use gnuplot::{Figure, Caption, Color,AxesCommon,AutoOption};
+use gnuplot::{Figure, Caption, Color, RGBString, AxesCommon, AutoOption};
 use std::str::FromStr;
 
 
@@ -343,7 +343,7 @@ impl<'a> VariableResult<'a> {
 
 
         fg.axes2d()
-            .lines(&x,&y,&[Caption(title),Color(color)])
+            .lines(&x,&y,&[Caption(title),Color(RGBString(color))])
             .set_x_log(Some(10.0))
             .set_y_range(AutoOption::Fix(-70.0),AutoOption::Fix(0.0));
 

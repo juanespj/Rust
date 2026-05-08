@@ -1,4 +1,4 @@
-use calamine::{open_workbook, DataType, Reader, Xlsx};
+use calamine::{open_workbook, Data, Reader, Xlsx};
 use std::collections::HashMap;
 
 pub struct RawData {
@@ -14,12 +14,12 @@ pub fn processdata(name: String, ds: &mut RawData) {
     let mut value: Vec<String> = vec![];
     // let mut dataf: HashMap<String, Vec<f32>> = HashMap::new();
     // let mut dataf: HashMap<&String, Vec<f64>> = HashMap::new();
-    if let Some(Ok(r)) = excel.worksheet_range("Sheet1") {
+    if let Ok(r) = excel.worksheet_range("Sheet1") {
         for (i, row) in r.rows().enumerate() {
             if i == 0 || i == 2 || i == 4 {
                 // let mut items = row.split(",");
                 for s in row {
-                    if s != &DataType::Empty {
+                    if s != &Data::Empty {
                         header.push(s.to_string());
                     }
                 }
@@ -28,7 +28,7 @@ pub fn processdata(name: String, ds: &mut RawData) {
             } else if i == 1 || i == 3 {
                 // let mut items = row.split(",");
                 for s in row {
-                    if s != &DataType::Empty {
+                    if s != &Data::Empty {
                         //let f: f64 = s.to_string().parse().unwrap();
                         value.push(s.to_string());
                     }
@@ -43,7 +43,7 @@ pub fn processdata(name: String, ds: &mut RawData) {
             } else if i == 6 {
                 println!("{:?}", &ds.diag);
                 for s in row {
-                    if s != &DataType::Empty {
+                    if s != &Data::Empty {
                         header.push(s.to_string());
                     }
                 }

@@ -2,18 +2,18 @@ use eframe::egui;
 
 use ftail::Ftail;
 use log::LevelFilter;
-use rust_embed::Embed;
+use rust_embed::RustEmbed;
 // use std::backtrace::Backtrace;
 use std::panic;
-use sys_tools::{Config, readsys};
+use jeapp::sys_tools::{Config, readsys};
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn get_app_info() -> String {
     format!("JE Tools v{APP_VERSION}")
 }
 
-#[derive(Embed)]
-#[folder = "$CARGO_MANIFEST_DIR/../assets"]
+#[derive(RustEmbed)]
+#[folder = "assets"]
 pub struct Asset;
 
 fn main() {

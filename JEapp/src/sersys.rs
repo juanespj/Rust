@@ -516,7 +516,7 @@ pub fn arc2readserial(
                                     //send to ui
                                     serial_in.push(data_read);
                                 }
-                                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
+                                Err(e) if e.kind() == io::ErrorKind::TimedOut => {
                                     //   eprintln!("{:?}", e);
                                     // loop_lock = 0;
                                 }
